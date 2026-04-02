@@ -1,0 +1,20 @@
+{
+  "name": "agentforge",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "dev:server": "turbo dev --filter=@agentforge/server",
+    "dev:web": "turbo dev --filter=@agentforge/web",
+    "build:contracts": "cd packages/contracts && cargo build --release --target wasm32-unknown-unknown"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0"
+  }
+}
