@@ -7,3 +7,9 @@ members = [
 
 [workspace.dependencies]
 soroban-sdk = "22.0.0"
+
+[profile.release]
+overflow-checks = true
+opt-level = "z"
+lto = true
+codegen-units = 1

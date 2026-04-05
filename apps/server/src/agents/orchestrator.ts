@@ -2,6 +2,11 @@ import Anthropic from "@anthropic-ai/sdk";
 import { queryServiceRegistry } from "../stellar/registry.js";
 import { checkBudget, recordSpend } from "../stellar/policy.js";
 import { emitActivity } from "../websocket/activity.js";
+import {
+  callScraperAgent,
+  callSummarizerAgent,
+  callAnalystAgent,
+} from "../payments/x402client.js";
 
 const anthropic = new Anthropic();
 
@@ -156,20 +161,45 @@ Decompose this task, discover agents, check budget, and hire them to complete th
             message: `Hiring agent ${input.service_id}: "${input.task_description}"`,
             timestamp: Date.now(),
           });
-          // TODO: Make actual x402/MPP payment call to agent endpoint
-          result = JSON.stringify({
-            status: "completed",
-            service_id: input.service_id,
-            output: `[Agent ${input.service_id} result for: ${input.task_description}]`,
-          });
-          await recordSpend(0.001);
-          emitActivity({
-            type: "payment_sent",
-            taskId: task.id,
-            message: `Payment settled on Stellar testnet for service ${input.service_id}`,
-            amount: 0.001,
-            timestamp: Date.now(),
-          });
+
+          try {
+            let agentResult;
+            if (input.service_id.startsWith("scraper")) {
+              const url = input.input_data || "https://stellar.org";
+              agentResult = await callScraperAgent(url);
+            } else if (input.service_id.startsWith("summarizer")) {
+              agentResult = await callSummarizerAgent(
+                input.input_data || input.task_description
+              );
+            } else {
+              agentResult = await callAnalystAgent(
+                input.input_data || "",
+                input.task_description
+              );
+            }
+
+            await recordSpend(agentResult.amountPaid || 0.001);
+
+            emitActivity({
+              type: "payment_sent",
+              taskId: task.id,
+              message: `x402 payment of $${agentResult.amountPaid} settled on Stellar testnet for ${input.service_id}`,
+              amount: agentResult.amountPaid,
+              timestamp: Date.now(),
+            });
+
+            result = JSON.stringify({
+              status: "completed",
+              service_id: input.service_id,
+              output: agentResult.output,
+            });
+          } catch (err) {
+            result = JSON.stringify({
+              status: "error",
+              service_id: input.service_id,
+              error: String(err),
+            });
+          }
           break;
         }
         case "check_remaining_budget": {

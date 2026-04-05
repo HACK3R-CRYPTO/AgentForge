@@ -9,7 +9,7 @@ const RPC_URL =
   process.env.STELLAR_RPC_URL || "https://soroban-testnet.stellar.org";
 
 export const horizon = new StellarSdk.Horizon.Server(HORIZON_URL);
-export const sorobanRpc = new StellarSdk.SorobanRpc.Server(RPC_URL);
+export const sorobanRpc = new StellarSdk.rpc.Server(RPC_URL);
 export const networkPassphrase = NETWORK_PASSPHRASE;
 
 export function getKeypair(secretKey: string): StellarSdk.Keypair {

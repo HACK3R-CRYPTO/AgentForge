@@ -21,7 +21,7 @@ export function createMPPChallenge(
     intent: "charge",
     amount,
     currency: "USDC",
-    recipient: process.env.SUMMARIZER_SECRET_KEY || "",
+    recipient: process.env.SUMMARIZER_PUBLIC_KEY || "",
     network: "stellar:testnet",
   };
 }

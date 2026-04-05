@@ -1,23 +1,25 @@
-import { paymentMiddleware, x402ResourceServer } from "@x402/express";
+// x402 Resource Server Middleware for AgentForge
+// Puts payment gates on agent endpoints — clients must pay before access
+
+import { paymentMiddleware } from "@x402/express";
+import { x402ResourceServer, HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
-import { HTTPFacilitatorClient } from "@x402/core/server";
-import type { Router } from "express";
 
-const FACILITATOR_URL =
-  process.env.FACILITATOR_URL || "http://localhost:4022";
-const PAY_TO = process.env.ORCHESTRATOR_SECRET_KEY
-  ? "" // Will be derived from secret key
-  : "GABC..."; // Placeholder
+const USDC =
+  process.env.USDC_CONTRACT_ID ||
+  "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA";
 
-export function setupX402Middleware(router: Router) {
+export function createX402Middleware() {
+  const scraperPayTo = process.env.SCRAPER_PUBLIC_KEY!;
+  const summarizerPayTo = process.env.SUMMARIZER_PUBLIC_KEY!;
+  const analystPayTo = process.env.ANALYST_PUBLIC_KEY!;
+
   const facilitatorClient = new HTTPFacilitatorClient({
-    url: FACILITATOR_URL,
+    url: process.env.FACILITATOR_URL || "http://localhost:4022",
   });
 
-  const x402Server = new x402ResourceServer(facilitatorClient).register(
-    "stellar:testnet",
-    new ExactStellarScheme()
-  );
+  const server = new x402ResourceServer(facilitatorClient);
+  server.register("stellar:testnet", new ExactStellarScheme());
 
   return paymentMiddleware(
     {
@@ -25,31 +27,36 @@ export function setupX402Middleware(router: Router) {
         accepts: [
           {
             scheme: "exact",
-            price: 0.001,
+            price: { asset: USDC, amount: "10000" },   // 0.001 USDC in 7-decimal stroops
             network: "stellar:testnet",
-            asset:
-              process.env.USDC_CONTRACT_ID ||
-              "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
-            payTo: PAY_TO,
+            payTo: scraperPayTo,
           },
         ],
-        description: "Web scraping service - fetches and extracts content",
+        description: "Web scraping service — $0.001/call via x402",
+      },
+      "POST /api/agents/summarizer": {
+        accepts: [
+          {
+            scheme: "exact",
+            price: { asset: USDC, amount: "20000" },   // 0.002 USDC
+            network: "stellar:testnet",
+            payTo: summarizerPayTo,
+          },
+        ],
+        description: "Text summarizer — $0.002/summary via x402",
       },
       "POST /api/agents/analyst": {
         accepts: [
           {
             scheme: "exact",
-            price: 0.003,
+            price: { asset: USDC, amount: "30000" },   // 0.003 USDC
             network: "stellar:testnet",
-            asset:
-              process.env.USDC_CONTRACT_ID ||
-              "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
-            payTo: PAY_TO,
+            payTo: analystPayTo,
           },
         ],
-        description: "Data analysis service - produces structured reports",
+        description: "Data analyst — $0.003/report via x402",
       },
     },
-    x402Server
+    server
   );
 }

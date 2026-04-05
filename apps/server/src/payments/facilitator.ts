@@ -27,10 +27,16 @@ export function startFacilitator() {
   const facilitator = new x402Facilitator();
   facilitator.register("stellar:testnet", scheme);
 
+  // Supported endpoint
+  facilitatorApp.get("/supported", (_req, res) => {
+    res.json(facilitator.getSupported());
+  });
+
   // Verify endpoint
   facilitatorApp.post("/verify", async (req, res) => {
     try {
-      const result = await facilitator.verify(req.body);
+      const { paymentPayload, paymentRequirements } = req.body;
+      const result = await facilitator.verify(paymentPayload, paymentRequirements);
       res.json(result);
     } catch (error) {
       res.status(400).json({ error: String(error) });
@@ -40,16 +46,12 @@ export function startFacilitator() {
   // Settle endpoint
   facilitatorApp.post("/settle", async (req, res) => {
     try {
-      const result = await facilitator.settle(req.body);
+      const { paymentPayload, paymentRequirements } = req.body;
+      const result = await facilitator.settle(paymentPayload, paymentRequirements);
       res.json(result);
     } catch (error) {
       res.status(400).json({ error: String(error) });
     }
-  });
-
-  // Supported networks
-  facilitatorApp.get("/supported", (_req, res) => {
-    res.json({ networks: ["stellar:testnet"] });
   });
 
   // Health
@@ -60,6 +62,7 @@ export function startFacilitator() {
   const port = process.env.FACILITATOR_PORT || 4022;
   facilitatorApp.listen(port, () => {
     console.log(`x402 Facilitator running on port ${port}`);
+    console.log(`  Facilitator pubkey: ${process.env.FACILITATOR_PUBLIC_KEY}`);
   });
 
   return facilitatorApp;

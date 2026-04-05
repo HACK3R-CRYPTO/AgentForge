@@ -8,13 +8,15 @@ interface TaskRequest {
   budget?: number;
 }
 
+type TaskStatus = "pending" | "running" | "completed" | "failed";
+
 const tasks = new Map<
   string,
   {
     id: string;
     prompt: string;
     budget: number;
-    status: string;
+    status: TaskStatus;
     result?: string;
     createdAt: number;
   }
@@ -34,12 +36,11 @@ taskRoutes.post("/", async (req, res) => {
     id: taskId,
     prompt,
     budget,
-    status: "pending" as const,
+    status: "running" as TaskStatus,
     createdAt: Date.now(),
   };
 
   tasks.set(taskId, task);
-  task.status = "running";
 
   // Run async — don't block the response
   executeTask(task)
