@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+// In production NEXT_PUBLIC_WS_URL should be wss://your-railway-url.up.railway.app
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:4021";
 
 interface ActivityEvent {

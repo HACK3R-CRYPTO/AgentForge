@@ -3,6 +3,8 @@ dist/
 .next/
 .env
 .env.local
+.env.railway
+.env.vercel
 .turbo/
 target/
 *.wasm
