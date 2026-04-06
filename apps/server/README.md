@@ -54,7 +54,7 @@ src/
 │   ├── x402.ts             # x402 paymentMiddleware config (Scraper: $0.001, Analyst: $0.003)
 │   ├── x402client.ts       # x402 HTTP client — does the 402 dance + in-memory payment ledger
 │   ├── facilitator.ts      # Self-hosted x402 Facilitator server (port 4022)
-│   ├── mpp-server.ts       # MPP Charge server middleware — guards the Summarizer endpoint
+│   ├── mpp-server.ts       # MPP Charge server middleware — guards Summarizer (uses mppx/express)
 │   ├── mpp-client.ts       # MPP Charge client — Platform wallet pays Summarizer ($0.002)
 │   └── agent-to-agent.ts   # Scraper wallet pays Summarizer directly — true A2A payment
 │
@@ -210,3 +210,26 @@ curl "http://localhost:4021/health"
 ## Mock Mode
 
 Set `MOCK_MODE=true` in `.env` to run without real Claude API calls or Stellar payments. The Orchestrator replays a fixed sequence of agent hire events with 800ms delays. Useful for frontend development or demos without credentials.
+
+---
+
+## Production Deployment (Railway)
+
+The server is deployed at `https://agentforgeserver-production.up.railway.app`.
+
+**Key env vars for production:**
+
+| Variable | Notes |
+|---|---|
+| `SERVER_URL` | Set to the public Railway URL so agent endpoints are registered on-chain with the correct address. Railway also injects `RAILWAY_PUBLIC_DOMAIN` automatically — `SERVER_URL` takes priority. |
+| `FRONTEND_URL` | Set to the Vercel frontend URL to allow CORS from the dashboard. |
+| `MOCK_MODE` | Leave unset (or `false`) for live payments. |
+
+**How endpoint URLs are resolved (registry.ts):**
+```
+SERVER_URL (explicit) → RAILWAY_PUBLIC_DOMAIN (auto-injected) → http://localhost:PORT (fallback)
+```
+
+**Registry deduplication:** `getAllServices()` deduplicates on-chain entries by category (keeps the highest-ID entry per category) to handle any duplicates from pre-idempotency registrations. Payment type badges are overridden from the in-memory source of truth to correct any stale on-chain data.
+
+**MPP guard (`mpp-server.ts`):** Uses `mppx/express` — the `Mppx.create({...}).charge({ amount })` call returns an Express `RequestHandler` directly. This is different from `mppx/server` which requires manual conversion to a Node listener.

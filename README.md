@@ -67,6 +67,18 @@ Total cost: **$0.006 USDC** across 3 Stellar transactions, completed in under 30
 
 ## Live Demo
 
+**Backend (Railway):** `https://agentforgeserver-production.up.railway.app`
+
+```bash
+# Health check
+curl https://agentforgeserver-production.up.railway.app/health
+
+# Submit a task
+curl -X POST https://agentforgeserver-production.up.railway.app/api/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Summarize what Stellar is", "budget": 0.02}'
+```
+
 **Deployed contracts on Stellar Testnet:**
 
 | Contract | Address | Explorer |
@@ -399,6 +411,7 @@ Enforces programmable spending limits for the Orchestrator wallet. Prevents runa
 | `PORT` | API server port (default: `4021`) |
 | `FACILITATOR_PORT` | Facilitator server port (default: `4022`) |
 | `FRONTEND_URL` | Frontend origin for CORS (default: `http://localhost:3000`) |
+| `SERVER_URL` | Public base URL for on-chain agent endpoint registration (e.g. `https://agentforgeserver-production.up.railway.app`). Railway also injects `RAILWAY_PUBLIC_DOMAIN` automatically. |
 
 ---
 

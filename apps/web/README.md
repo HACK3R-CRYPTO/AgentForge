@@ -20,6 +20,16 @@ Create `apps/web/.env.local`:
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:4021
 NEXT_PUBLIC_WS_URL=ws://localhost:4021
+NEXT_PUBLIC_SERVICE_REGISTRY_ID=CDQXE54HXAIB7SPAWR7MMJAJT6JBMKFDDLOITBVRXXTME7UHO43PLRH3
+NEXT_PUBLIC_SPENDING_POLICY_ID=CAVKJDIF5CWDRTRGQCVETSRFDSMDNSHPAVI6UE342G76ZK3JST2TKDAE
+```
+
+For production (pointing at Railway backend):
+
+```env
+NEXT_PUBLIC_API_URL=https://agentforgeserver-production.up.railway.app
+NEXT_PUBLIC_WS_URL=wss://agentforgeserver-production.up.railway.app
+NEXT_PUBLIC_SERVICE_REGISTRY_ID=CDQXE54HXAIB7SPAWR7MMJAJT6JBMKFDDLOITBVRXXTME7UHO43PLRH3
 NEXT_PUBLIC_SPENDING_POLICY_ID=CAVKJDIF5CWDRTRGQCVETSRFDSMDNSHPAVI6UE342G76ZK3JST2TKDAE
 ```
 
@@ -36,12 +46,12 @@ Single-page layout with two columns:
 
 | Component | Description |
 |---|---|
-| `TaskSubmitForm` | Textarea (max 1000 chars) with example prompts, budget input ($0.001–$0.50), launch button |
-| `TaskResult` | Polls `/api/tasks/:id` every 2s; renders markdown result; shows error panel on failure |
+| `TaskSubmitForm` | Textarea (max 1000 chars) with example prompts, budget input ($0.001–$0.50), protocol labels per agent chip (x402/MPP in color), API error messages displayed inline |
+| `TaskResult` | Polls `/api/tasks/:id` every 2s; renders markdown result in scrollable 600px area; shows error panel on failure |
 | `BudgetWidget` | Reads Soroban SpendingPolicy — animated progress bar, remaining budget, per-TX limit, >80% warning, Stellar Expert link |
 | `AgentActivityFeed` | WebSocket client — live terminal feed of agent events with color-coded icons; auto-reconnects on disconnect |
-| `PaymentExplorer` | Polls `/api/payments/history` every 5s — shows x402 and MPP payments with protocol badges, expandable detail rows with Stellar Expert tx links |
-| `ServiceRegistry` | Polls `/api/agents` every 10s — shows on-chain registered agents with payment type (x402/MPP), price per call, reputation score, and call counts |
+| `PaymentExplorer` | Polls `/api/payments/history` every 5s — shows x402 (indigo) and MPP (cyan) payments with protocol badges, expandable detail rows with Stellar Expert tx links |
+| `ServiceRegistry` | Polls `/api/agents` every 5s — shows on-chain registered agents; protocol badge uses consistent colors (x402=indigo, MPP=cyan); deduplicates same-category entries; price per call, reputation score, and call counts |
 
 ## Activity Feed Event Types
 

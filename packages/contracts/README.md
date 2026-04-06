@@ -20,9 +20,10 @@ An on-chain marketplace for agent services. Any developer can register an agent 
 **Storage:** Each service is stored by auto-incrementing numeric ID with fields: agent address, name, description, endpoint, price (in stroops, 7 decimal places), payment type (0=x402, 1=MPP), category, reputation score, total calls.
 
 **How AgentForge uses it:**
-- On **server startup**, the Orchestrator calls `register` once per agent (idempotent — skips if already registered)
-- When Claude calls the `discover_agents` tool, the backend calls `query_all` via Soroban simulation
+- On **server startup**, the Orchestrator calls `register` once per agent — idempotent: queries `query_all` first and skips categories that are already registered
+- When Claude calls the `discover_agents` tool, the backend calls `query_all` via Soroban simulation (read-only, no fee)
 - After each successful hire, the backend fire-and-forgets `record_call` to increment the on-chain counter
+- The backend deduplicates `query_all` results by category (keeping the highest-ID entry) to handle any pre-idempotency duplicates already on-chain
 
 **Interface:**
 
