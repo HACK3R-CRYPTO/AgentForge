@@ -8,7 +8,12 @@ import {
   callAnalystAgent,
 } from "../payments/x402client.js";
 
-const anthropic = new Anthropic();
+// Lazy init so dotenv has time to load before the constructor reads env vars
+let _anthropic: Anthropic | null = null;
+function getAnthropic() {
+  if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return _anthropic;
+}
 
 interface Task {
   id: string;
@@ -72,7 +77,26 @@ const TOOLS: Anthropic.Tool[] = [
   },
 ];
 
+// Mock mode — runs without real Anthropic credits for demo/frontend dev
+async function executeTaskMock(task: Task): Promise<string> {
+  const steps = [
+    { type: "agent_hired", agent: "scraper", cost: 0.001, message: `Scraper hired — fetching data for: "${task.prompt}"` },
+    { type: "payment_sent", agent: "scraper", cost: 0.001, message: "x402 payment sent: 0.001 USDC → scraper via Stellar" },
+    { type: "agent_hired", agent: "summarizer", cost: 0.002, message: "Summarizer hired — processing scraped content" },
+    { type: "payment_sent", agent: "summarizer", cost: 0.002, message: "x402 payment sent: 0.002 USDC → summarizer via Stellar" },
+    { type: "agent_hired", agent: "analyst", cost: 0.003, message: "Analyst hired — generating final report" },
+    { type: "payment_sent", agent: "analyst", cost: 0.003, message: "x402 payment sent: 0.003 USDC → analyst via Stellar" },
+    { type: "task_completed", message: "All agents completed. Total spent: $0.006 USDC" },
+  ];
+  for (const step of steps) {
+    await new Promise((r) => setTimeout(r, 800));
+    emitActivity({ ...step, taskId: task.id, timestamp: Date.now() });
+  }
+  return `## AgentForge Result (mock)\n\nTask: "${task.prompt}"\n\n**Scraper** collected 3 sources.\n**Summarizer** distilled key insights.\n**Analyst** produced structured report.\n\nTotal cost: $0.006 USDC across 3 Stellar micropayments.`;
+}
+
 export async function executeTask(task: Task): Promise<string> {
+  if (process.env.MOCK_MODE === "true") return executeTaskMock(task);
   emitActivity({
     type: "task_started",
     taskId: task.id,
@@ -107,7 +131,7 @@ Decompose this task, discover agents, check budget, and hire them to complete th
   while (iterationCount < maxIterations) {
     iterationCount++;
 
-    const response = await anthropic.messages.create({
+    const response = await getAnthropic().messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
       tools: TOOLS,
@@ -116,14 +140,14 @@ Decompose this task, discover agents, check budget, and hire them to complete th
 
     // Collect text and tool uses
     const toolUseBlocks = response.content.filter(
-      (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
+      (b: Anthropic.ContentBlock): b is Anthropic.ToolUseBlock => b.type === "tool_use"
     );
     const textBlocks = response.content.filter(
-      (b): b is Anthropic.TextBlock => b.type === "text"
+      (b: Anthropic.ContentBlock): b is Anthropic.TextBlock => b.type === "text"
     );
 
     if (textBlocks.length > 0) {
-      finalResult += textBlocks.map((b) => b.text).join("\n");
+      finalResult += textBlocks.map((b: Anthropic.TextBlock) => b.text).join("\n");
     }
 
     if (response.stop_reason === "end_turn" || toolUseBlocks.length === 0) {
