@@ -78,59 +78,56 @@ To run locally: see [Getting Started](#getting-started).
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        User Browser                          │
-│                    Next.js Dashboard                         │
-│         Live Activity  │  Payments  │  Registry             │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ HTTP / WebSocket
-┌──────────────────────────▼──────────────────────────────────┐
-│                    AgentForge Server                         │
-│                     Express.js API                           │
-│                                                              │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │              Orchestrator Agent (Claude AI)          │    │
-│  │  1. Decompose task into subtasks                     │    │
-│  │  2. Query ServiceRegistry (Soroban) for agents       │    │
-│  │  3. Check SpendingPolicy (Soroban) for budget        │    │
-│  │  4. Hire agents via x402 micropayments               │    │
-│  └──────┬───────────────┬────────────────┬─────────────┘    │
-│         │ x402          │ x402           │ x402              │
-│  ┌──────▼──────┐ ┌──────▼───────┐ ┌─────▼────────┐         │
-│  │   Scraper   │ │  Summarizer  │ │   Analyst    │         │
-│  │  $0.001/call│ │  $0.002/call │ │  $0.003/call │         │
-│  └─────────────┘ └──────────────┘ └──────────────┘         │
-│                                                              │
-│  ┌───────────────────────────────────────────────────┐      │
-│  │           x402 Facilitator (port 4022)             │      │
-│  │   Verifies + settles Stellar USDC payments         │      │
-│  └───────────────────────────────────────────────────┘      │
-└──────────────────────────────────────────────────────────────┘
-                           │ Stellar SDK
-┌──────────────────────────▼──────────────────────────────────┐
-│                    Stellar Testnet                            │
-│  ServiceRegistry Contract  │  SpendingPolicy Contract        │
-│  USDC micropayments        │  Horizon API                    │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    User(["🧑 User\nNext.js Dashboard"])
+
+    subgraph Server["AgentForge Server (Express.js)"]
+        Orch["🤖 Orchestrator\nClaude AI · tool use"]
+        Scraper["🔍 Scraper Agent\n$0.001 / call"]
+        Summarizer["📝 Summarizer Agent\n$0.002 / call"]
+        Analyst["📊 Analyst Agent\n$0.003 / call"]
+        Facilitator["🔐 x402 Facilitator\nverify + settle"]
+    end
+
+    subgraph Stellar["Stellar Testnet"]
+        Registry["📋 ServiceRegistry\nSoroban Contract"]
+        Policy["🛡️ SpendingPolicy\nSoroban Contract"]
+        USDC["💵 USDC Payments\nHorizon · < 5s"]
+    end
+
+    User -->|"submit task + budget"| Orch
+    Orch -->|"query agents"| Registry
+    Orch -->|"check budget"| Policy
+    Orch -->|"hire via x402"| Scraper
+    Orch -->|"hire via x402"| Summarizer
+    Orch -->|"hire via x402"| Analyst
+    Scraper -->|"verify payment"| Facilitator
+    Summarizer -->|"verify payment"| Facilitator
+    Analyst -->|"verify payment"| Facilitator
+    Facilitator -->|"settle TX"| USDC
+    Policy -->|"record spend"| USDC
+    Orch -->|"result"| User
 ```
 
 ### x402 Payment Flow
 
-```
-Platform wallet  →  hits /api/agents/scraper
-                 ←  HTTP 402 Payment Required
-                     header: PAYMENT-REQUIRED (base64 requirements)
-                 →  signs Stellar USDC transfer
-                 →  retries with PAYMENT-SIGNATURE header
-                     │
-                     ▼
-              x402 Facilitator
-              verifies signature → settles TX on Stellar
-                     │
-                     ▼
-              Scraper agent receives payment
-              returns scraped content → 200 OK
+```mermaid
+sequenceDiagram
+    participant P as Platform Wallet
+    participant S as Agent Endpoint
+    participant F as x402 Facilitator
+    participant T as Stellar Testnet
+
+    P->>S: GET /api/agents/scraper
+    S-->>P: 402 Payment Required<br/>(PAYMENT-REQUIRED header)
+    P->>P: Sign USDC transfer (0.001 USDC)
+    P->>S: GET /api/agents/scraper<br/>(PAYMENT-SIGNATURE header)
+    S->>F: verify(payload, requirements)
+    F->>T: submit signed TX
+    T-->>F: confirmed ✅
+    F-->>S: isValid: true
+    S-->>P: 200 OK + scraped content
 ```
 
 ---
