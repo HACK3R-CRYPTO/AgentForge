@@ -23,8 +23,9 @@ export default function PaymentExplorer() {
   useEffect(() => {
     async function fetch_() {
       try {
-        const r = await fetch(`${API_URL}/api/payments/history`);
-        setPayments(await r.json());
+        const r    = await fetch(`${API_URL}/api/payments/history`);
+        const data = await r.json();
+        setPayments(Array.isArray(data) ? data : (data.payments ?? []));
       } catch { /* server not up yet */ }
       finally { setLoading(false); }
     }
@@ -67,16 +68,17 @@ export default function PaymentExplorer() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
-                    <span className="font-mono text-xs text-white">
-                      {p.from ? p.from.slice(0,6) : "?"}…{p.from ? p.from.slice(-4) : ""}
-                    </span>
-                    <span className="text-[#374151] text-xs">→</span>
-                    <span className="font-mono text-xs text-white">
-                      {p.to ? p.to.slice(0,6) : "?"}…{p.to ? p.to.slice(-4) : ""}
-                    </span>
+                    <span className="font-mono text-xs text-[#6b7280] capitalize">{p.type ?? "payment"}</span>
+                    {p.from && (
+                      <>
+                        <span className="font-mono text-xs text-white">{p.from.slice(0,6)}…{p.from.slice(-4)}</span>
+                        <span className="text-[#374151] text-xs">→</span>
+                        <span className="font-mono text-xs text-white">{p.to ? `${p.to.slice(0,6)}…${p.to.slice(-4)}` : "—"}</span>
+                      </>
+                    )}
                   </div>
                   <span className="text-green-400 font-mono text-sm font-semibold">
-                    {p.amount} {p.asset}
+                    {p.amount ? `${p.amount} ${p.asset}` : p.asset ?? "—"}
                   </span>
                 </div>
 
