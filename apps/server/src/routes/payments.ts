@@ -59,17 +59,35 @@ paymentRoutes.get("/history", async (req, res) => {
       .order("desc")
       .call();
 
+    // Agent address → label map for readable display
+    const agentLabels: Record<string, string> = {
+      [process.env.ORCHESTRATOR_PUBLIC_KEY ?? ""]: "Orchestrator",
+      [process.env.SCRAPER_PUBLIC_KEY      ?? ""]: "Scraper",
+      [process.env.SUMMARIZER_PUBLIC_KEY   ?? ""]: "Summarizer",
+      [process.env.ANALYST_PUBLIC_KEY      ?? ""]: "Analyst",
+      [process.env.FACILITATOR_PUBLIC_KEY  ?? ""]: "Facilitator",
+    };
+
+    const label = (addr?: string) =>
+      addr ? (agentLabels[addr] || `${addr.slice(0, 6)}…${addr.slice(-4)}`) : "—";
+
     const formatted = payments.records.map((p) => {
       const rec = p as unknown as Record<string, unknown>;
+      // Horizon uses different field names per operation type
+      const from   = (rec.from   ?? rec.funder  ?? rec.source_account) as string | undefined;
+      const to     = (rec.to     ?? rec.account ?? rec.into)            as string | undefined;
+      const amount = (rec.amount ?? rec.starting_balance)               as string | undefined;
       return {
-        id: rec.id,
-        type: rec.type,
-        amount: rec.amount,
-        asset: rec.asset_code || "XLM",
-        from: rec.from,
-        to: rec.to,
+        id:        rec.id,
+        type:      rec.type,
+        amount,
+        asset:     rec.asset_code || "XLM",
+        from,
+        to,
+        fromLabel: label(from),
+        toLabel:   label(to),
         timestamp: rec.created_at,
-        txHash: rec.transaction_hash,
+        txHash:    rec.transaction_hash,
       };
     });
 

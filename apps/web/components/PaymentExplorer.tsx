@@ -7,10 +7,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4021";
 interface Payment {
   id: string;
   type: string;
-  amount: string;
+  amount?: string;
   asset: string;
-  from: string;
-  to: string;
+  from?: string;
+  to?: string;
+  fromLabel?: string;
+  toLabel?: string;
   timestamp: string;
   txHash: string;
 }
@@ -66,19 +68,16 @@ export default function PaymentExplorer() {
                 className="bg-[#111827] hover:bg-[#1f2937] border border-[#1f2937] hover:border-[#374151] rounded-lg p-3 cursor-pointer transition-all"
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
-                    <span className="font-mono text-xs text-[#6b7280] capitalize">{p.type ?? "payment"}</span>
-                    {p.from && (
-                      <>
-                        <span className="font-mono text-xs text-white">{p.from.slice(0,6)}…{p.from.slice(-4)}</span>
-                        <span className="text-[#374151] text-xs">→</span>
-                        <span className="font-mono text-xs text-white">{p.to ? `${p.to.slice(0,6)}…${p.to.slice(-4)}` : "—"}</span>
-                      </>
-                    )}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0 inline-block" />
+                    <span className="text-[#4b5563] text-xs capitalize shrink-0">{(p.type ?? "payment").replace(/_/g, " ")}</span>
+                    <span className="text-[#374151] shrink-0">·</span>
+                    <span className="text-white text-xs font-medium truncate">{p.fromLabel ?? "—"}</span>
+                    <span className="text-[#374151] text-xs shrink-0">→</span>
+                    <span className="text-indigo-300 text-xs font-medium truncate">{p.toLabel ?? "—"}</span>
                   </div>
-                  <span className="text-green-400 font-mono text-sm font-semibold">
-                    {p.amount ? `${p.amount} ${p.asset}` : p.asset ?? "—"}
+                  <span className="text-green-400 font-mono text-sm font-semibold shrink-0 ml-2">
+                    {p.amount ? `${parseFloat(p.amount).toFixed(2)} ${p.asset}` : p.asset}
                   </span>
                 </div>
 
@@ -86,15 +85,27 @@ export default function PaymentExplorer() {
                   <div className="mt-2 pt-2 border-t border-[#1f2937] space-y-1 slide-in">
                     <div className="flex items-center justify-between text-[10px]">
                       <span className="text-[#4b5563]">From</span>
-                      <span className="font-mono text-[#9ca3af]">{p.from}</span>
+                      <span className="text-[#9ca3af]">
+                        <span className="font-medium text-white">{p.fromLabel}</span>
+                        {p.from && <span className="text-[#4b5563] ml-1 font-mono">({p.from.slice(0,8)}…)</span>}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between text-[10px]">
                       <span className="text-[#4b5563]">To</span>
-                      <span className="font-mono text-[#9ca3af]">{p.to}</span>
+                      <span className="text-[#9ca3af]">
+                        <span className="font-medium text-indigo-300">{p.toLabel}</span>
+                        {p.to && <span className="text-[#4b5563] ml-1 font-mono">({p.to.slice(0,8)}…)</span>}
+                      </span>
                     </div>
+                    {p.amount && (
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-[#4b5563]">Amount</span>
+                        <span className="text-green-400 font-mono font-semibold">{p.amount} {p.asset}</span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between text-[10px]">
                       <span className="text-[#4b5563]">Time</span>
-                      <span className="text-[#9ca3af]">{p.timestamp}</span>
+                      <span className="text-[#9ca3af]">{new Date(p.timestamp).toLocaleString()}</span>
                     </div>
                     <a
                       href={`https://stellar.expert/explorer/testnet/tx/${p.txHash}`}
