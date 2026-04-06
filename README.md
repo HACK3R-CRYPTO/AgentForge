@@ -402,6 +402,32 @@ Enforces programmable spending limits for the Orchestrator wallet. Prevents runa
 
 ---
 
+## Business Model
+
+AgentForge is currently demo-funded — the platform wallet pays all agent costs directly so judges and testers can use it without any crypto setup.
+
+In a production deployment, a single Stripe payment step sits in front of task submission:
+
+```
+User pays platform   →  $0.10 per task  (Stripe / card / fiat)
+Platform pays agents →  $0.006 in USDC  (Stellar micropayments)
+Platform keeps       →  $0.094 profit   per task
+```
+
+The user never touches crypto, never holds a wallet, never sees Stellar. They just pay with a card like any other web app. All the x402 and MPP complexity is invisible to them.
+
+**At scale (1,000 agents × 1,000 calls/day):**
+
+| Cost | Traditional (Stripe per call) | AgentForge (Stellar) |
+|---|---|---|
+| Daily transaction fees | $300,000 | $1.00 |
+| Monthly fees | $9,000,000 | $30 |
+| Viable at $0.001/call? | Never | Always |
+
+Stellar makes the unit economics work. That is the whole point.
+
+---
+
 ## License
 
 MIT — built for Stellar Hacks: Agents 2026. Every line open source.
