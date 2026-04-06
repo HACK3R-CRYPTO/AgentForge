@@ -1,5 +1,6 @@
-// MPP (Machine Payment Protocol) setup for Stellar
-// Uses @stellar/mpp for charge-mode payments on summarizer agent
+// MPP (Machine Payment Protocol) — Stellar payment channels for streaming tasks
+// The summarizer agent uses x402 (like scraper/analyst) for per-call micropayments.
+// MPP channel support is defined here for future streaming-payment use cases.
 
 export interface MPPChallenge {
   id: string;
@@ -13,7 +14,7 @@ export interface MPPChallenge {
 
 export function createMPPChallenge(
   amount: string,
-  description: string
+  _description: string
 ): MPPChallenge {
   return {
     id: crypto.randomUUID(),
@@ -24,10 +25,4 @@ export function createMPPChallenge(
     recipient: process.env.SUMMARIZER_PUBLIC_KEY || "",
     network: "stellar:testnet",
   };
-}
-
-export function verifyMPPCredential(credential: string): boolean {
-  // TODO: Verify the MPP payment credential against Stellar
-  // This will use @stellar/mpp charge/server to validate
-  return true;
 }

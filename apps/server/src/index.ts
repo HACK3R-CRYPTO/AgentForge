@@ -12,6 +12,7 @@ import { analyzeData } from "./agents/analyst.js";
 import { setupActivityFeed } from "./websocket/activity.js";
 import { startFacilitator } from "./payments/facilitator.js";
 import { createX402Middleware } from "./payments/x402.js";
+import { initRegistry } from "./stellar/registry.js";
 
 dotenv.config();
 
@@ -24,6 +25,9 @@ app.use(express.json());
 
 // Start x402 facilitator on port 4022
 startFacilitator();
+
+// Register agents on Soroban ServiceRegistry (fire-and-forget)
+initRegistry().catch((err) => console.warn("[Registry] init error:", err));
 
 // Health check (no payment required)
 app.get("/health", (_req, res) => {

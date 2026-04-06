@@ -1,4 +1,4 @@
-// ServiceRegistry - Soroban contract interactions
+// ServiceRegistry — Soroban contract interactions
 // Reads/writes to the on-chain agent service registry
 
 import * as StellarSdk from "@stellar/stellar-sdk";
@@ -17,14 +17,15 @@ export interface AgentService {
   totalCalls: number;
 }
 
-// In-memory registry for MVP (will be replaced with Soroban contract calls)
+// In-memory registry — authoritative source for call counts and initial data.
+// On-chain contract is the source of truth for registration and reputation.
 const services: AgentService[] = [
   {
     id: "scraper-001",
     agentId: "orchestrator",
     name: "Web Scraper Agent",
     description: "Fetches and extracts content from web pages",
-    endpoint: "http://localhost:4021/api/agents/scraper",
+    endpoint: `http://localhost:${process.env.PORT || 4021}/api/agents/scraper`,
     price: 0.001,
     paymentType: "x402",
     category: "scraper",
@@ -36,9 +37,9 @@ const services: AgentService[] = [
     agentId: "orchestrator",
     name: "Text Summarizer Agent",
     description: "Summarizes text content using AI",
-    endpoint: "http://localhost:4021/api/agents/summarizer",
+    endpoint: `http://localhost:${process.env.PORT || 4021}/api/agents/summarizer`,
     price: 0.002,
-    paymentType: "mpp",
+    paymentType: "x402",
     category: "summarizer",
     reputationScore: 100,
     totalCalls: 0,
@@ -48,7 +49,7 @@ const services: AgentService[] = [
     agentId: "orchestrator",
     name: "Data Analyst Agent",
     description: "Analyzes data and produces structured reports",
-    endpoint: "http://localhost:4021/api/agents/analyst",
+    endpoint: `http://localhost:${process.env.PORT || 4021}/api/agents/analyst`,
     price: 0.003,
     paymentType: "x402",
     category: "analyst",
@@ -57,15 +58,202 @@ const services: AgentService[] = [
   },
 ];
 
+// On-chain service IDs assigned after registration (contract auto-increments from 0)
+const onChainIds: Record<string, bigint> = {};
+
+// ─── Soroban helpers ──────────────────────────────────────────────────────────
+
+async function submitContractTx(
+  method: string,
+  args: StellarSdk.xdr.ScVal[],
+  secretKey: string
+): Promise<StellarSdk.xdr.ScVal | null> {
+  const contractId = process.env.SERVICE_REGISTRY_CONTRACT_ID;
+  if (!contractId || !secretKey) return null;
+
+  try {
+    const keypair = StellarSdk.Keypair.fromSecret(secretKey);
+    const account = await sorobanRpc.getAccount(keypair.publicKey());
+    const contract = new StellarSdk.Contract(contractId);
+
+    const tx = new StellarSdk.TransactionBuilder(account, {
+      fee: "1000000",
+      networkPassphrase,
+    })
+      .addOperation(contract.call(method, ...args))
+      .setTimeout(30)
+      .build();
+
+    const prepared = await sorobanRpc.prepareTransaction(tx);
+    (prepared as StellarSdk.Transaction).sign(keypair);
+
+    const send = await sorobanRpc.sendTransaction(prepared as StellarSdk.Transaction);
+    if (send.status === "ERROR") {
+      console.warn(`[Registry] ${method} TX rejected`);
+      return null;
+    }
+
+    // Poll for ledger confirmation
+    for (let i = 0; i < 15; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      const result = await sorobanRpc.getTransaction(send.hash);
+      if (result.status === "SUCCESS") {
+        return (result as unknown as { returnValue?: StellarSdk.xdr.ScVal }).returnValue ?? null;
+      }
+      if (result.status === "FAILED") {
+        console.warn(`[Registry] ${method} TX failed on-chain`);
+        return null;
+      }
+    }
+  } catch (err) {
+    console.warn(`[Registry] ${method} error:`, String(err).slice(0, 120));
+  }
+  return null;
+}
+
+async function simulateRead(
+  method: string,
+  args: StellarSdk.xdr.ScVal[] = []
+): Promise<StellarSdk.xdr.ScVal | null> {
+  const contractId = process.env.SERVICE_REGISTRY_CONTRACT_ID;
+  const publicKey = process.env.ORCHESTRATOR_PUBLIC_KEY;
+  if (!contractId || !publicKey) return null;
+
+  try {
+    const account = new StellarSdk.Account(publicKey, "0");
+    const contract = new StellarSdk.Contract(contractId);
+
+    const tx = new StellarSdk.TransactionBuilder(account, {
+      fee: "100",
+      networkPassphrase,
+    })
+      .addOperation(contract.call(method, ...args))
+      .setTimeout(30)
+      .build();
+
+    const sim = await sorobanRpc.simulateTransaction(tx);
+    if (!StellarSdk.rpc.Api.isSimulationSuccess(sim)) return null;
+    return sim.result?.retval ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Map Soroban native struct → AgentService
+function parseContractService(raw: Record<string, unknown>): AgentService {
+  const price = typeof raw.price === "bigint" ? raw.price : BigInt(String(raw.price ?? 0));
+  return {
+    id: String(raw.id ?? "0"),
+    agentId: String(raw.agent_id ?? ""),
+    name: String(raw.name ?? ""),
+    description: String(raw.description ?? ""),
+    endpoint: String(raw.endpoint ?? ""),
+    price: Number(price) / 10_000_000,
+    paymentType: (raw.payment_type === 0 || raw.payment_type === 0n) ? "x402" : "mpp",
+    category: String(raw.category ?? ""),
+    reputationScore: Number(raw.reputation ?? 100),
+    totalCalls: Number(raw.total_calls ?? 0),
+  };
+}
+
+// ─── Startup: register agents on-chain ───────────────────────────────────────
+
+export async function initRegistry(): Promise<void> {
+  const secretKey = process.env.ORCHESTRATOR_SECRET_KEY;
+  const contractId = process.env.SERVICE_REGISTRY_CONTRACT_ID;
+  if (!secretKey || !contractId) {
+    console.log("[Registry] No contract ID or key — skipping on-chain registration");
+    return;
+  }
+
+  console.log("[Registry] Registering agents on Soroban ServiceRegistry…");
+
+  const entries: Array<{ svc: AgentService; paymentTypeNum: number }> = [
+    { svc: services[0], paymentTypeNum: 0 }, // scraper → x402
+    { svc: services[1], paymentTypeNum: 0 }, // summarizer → x402
+    { svc: services[2], paymentTypeNum: 0 }, // analyst → x402
+  ];
+
+  for (let i = 0; i < entries.length; i++) {
+    const { svc, paymentTypeNum } = entries[i];
+    try {
+      const agentAddress = new StellarSdk.Address(
+        StellarSdk.Keypair.fromSecret(secretKey).publicKey()
+      );
+      const retval = await submitContractTx(
+        "register",
+        [
+          StellarSdk.nativeToScVal(agentAddress, { type: "address" }),
+          StellarSdk.nativeToScVal(svc.name, { type: "string" }),
+          StellarSdk.nativeToScVal(svc.description, { type: "string" }),
+          StellarSdk.nativeToScVal(svc.endpoint, { type: "string" }),
+          StellarSdk.nativeToScVal(BigInt(Math.round(svc.price * 10_000_000)), { type: "i128" }),
+          StellarSdk.nativeToScVal(paymentTypeNum, { type: "u32" }),
+          StellarSdk.nativeToScVal(svc.category, { type: "string" }),
+        ],
+        secretKey
+      );
+
+      if (retval) {
+        const id = StellarSdk.scValToNative(retval) as bigint;
+        onChainIds[svc.category] = id;
+        console.log(`[Registry] ${svc.name} registered on-chain → id=${id}`);
+      }
+    } catch (err) {
+      console.warn(`[Registry] Could not register ${svc.name}:`, String(err).slice(0, 80));
+    }
+    // Small gap between registrations to avoid sequence conflicts
+    await new Promise((r) => setTimeout(r, 500));
+  }
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
 export async function queryServiceRegistry(
   category: string
 ): Promise<AgentService[]> {
   return services.filter((s) => s.category === category);
 }
 
+export async function getAllServices(): Promise<AgentService[]> {
+  // Try to read live data from the Soroban contract
+  const retval = await simulateRead("query_all");
+  if (retval) {
+    try {
+      const native = StellarSdk.scValToNative(retval) as Record<string, unknown>[];
+      if (Array.isArray(native) && native.length > 0) {
+        const onChain = native.map(parseContractService);
+        // Merge in-memory call counts (on-chain record_call also increments but may lag)
+        return onChain.map((s) => ({
+          ...s,
+          totalCalls: Math.max(
+            s.totalCalls,
+            services.find((m) => m.category === s.category)?.totalCalls ?? 0
+          ),
+        }));
+      }
+    } catch {
+      /* fall through to in-memory */
+    }
+  }
+  return services;
+}
+
 export function incrementCallCount(category: string): void {
+  // Update in-memory counter immediately
   const svc = services.find((s) => s.category === category);
   if (svc) svc.totalCalls++;
+
+  // Fire-and-forget on-chain record_call
+  const id = onChainIds[category];
+  const secretKey = process.env.ORCHESTRATOR_SECRET_KEY;
+  if (id !== undefined && secretKey) {
+    submitContractTx(
+      "record_call",
+      [StellarSdk.nativeToScVal(id, { type: "u64" })],
+      secretKey
+    ).catch(() => { /* non-critical */ });
+  }
 }
 
 export async function registerService(
@@ -79,8 +267,4 @@ export async function registerService(
   };
   services.push(newService);
   return newService;
-}
-
-export async function getAllServices(): Promise<AgentService[]> {
-  return services;
 }

@@ -31,15 +31,31 @@ export default function AgentActivityFeed() {
   const feedRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const ws = new WebSocket(WS_URL);
-    ws.onopen    = () => setConnected(true);
-    ws.onclose   = () => setConnected(false);
-    ws.onmessage = (msg) => {
-      const data = JSON.parse(msg.data);
-      if (data.type === "history") setEvents(data.events ?? []);
-      else setEvents((prev) => [...prev.slice(-200), data]);
+    let ws: WebSocket;
+    let retryTimer: ReturnType<typeof setTimeout>;
+    let dead = false;
+
+    function connect() {
+      ws = new WebSocket(WS_URL);
+      ws.onopen    = () => setConnected(true);
+      ws.onclose   = () => {
+        setConnected(false);
+        if (!dead) retryTimer = setTimeout(connect, 3000);
+      };
+      ws.onerror   = () => ws.close();
+      ws.onmessage = (msg) => {
+        const data = JSON.parse(msg.data);
+        if (data.type === "history") setEvents(data.events ?? []);
+        else setEvents((prev) => [...prev.slice(-200), data]);
+      };
+    }
+
+    connect();
+    return () => {
+      dead = true;
+      clearTimeout(retryTimer);
+      ws.close();
     };
-    return () => ws.close();
   }, []);
 
   useEffect(() => {
