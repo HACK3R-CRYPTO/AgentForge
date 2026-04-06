@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getSpendingStatus } from "../stellar/policy.js";
-import { getAccountBalance, horizon } from "../stellar/client.js";
+import { getAccountBalance } from "../stellar/client.js";
+import { getPaymentLedger } from "../payments/x402client.js";
 
 export const paymentRoutes = Router();
 
@@ -41,59 +42,7 @@ paymentRoutes.get("/balances/:publicKey", async (req, res) => {
   }
 });
 
-// Get recent payment operations from Stellar Horizon
-paymentRoutes.get("/history", async (req, res) => {
-  try {
-    const publicKey =
-      (req.query.account as string) || process.env.ORCHESTRATOR_PUBLIC_KEY;
-
-    if (!publicKey) {
-      res.status(400).json({ error: "account query param or ORCHESTRATOR_PUBLIC_KEY required" });
-      return;
-    }
-
-    const payments = await horizon
-      .payments()
-      .forAccount(publicKey)
-      .limit(20)
-      .order("desc")
-      .call();
-
-    // Agent address → label map for readable display
-    const agentLabels: Record<string, string> = {
-      [process.env.ORCHESTRATOR_PUBLIC_KEY ?? ""]: "Orchestrator",
-      [process.env.PLATFORM_PUBLIC_KEY     ?? ""]: "Platform",
-      [process.env.SCRAPER_PUBLIC_KEY      ?? ""]: "Scraper",
-      [process.env.SUMMARIZER_PUBLIC_KEY   ?? ""]: "Summarizer",
-      [process.env.ANALYST_PUBLIC_KEY      ?? ""]: "Analyst",
-      [process.env.FACILITATOR_PUBLIC_KEY  ?? ""]: "Facilitator",
-    };
-
-    const label = (addr?: string) =>
-      addr ? (agentLabels[addr] || `${addr.slice(0, 6)}…${addr.slice(-4)}`) : "—";
-
-    const formatted = payments.records.map((p) => {
-      const rec = p as unknown as Record<string, unknown>;
-      // Horizon uses different field names per operation type
-      const from   = (rec.from   ?? rec.funder  ?? rec.source_account) as string | undefined;
-      const to     = (rec.to     ?? rec.account ?? rec.into)            as string | undefined;
-      const amount = (rec.amount ?? rec.starting_balance)               as string | undefined;
-      return {
-        id:        rec.id,
-        type:      rec.type,
-        amount,
-        asset:     rec.asset_code || "XLM",
-        from,
-        to,
-        fromLabel: label(from),
-        toLabel:   label(to),
-        timestamp: rec.created_at,
-        txHash:    rec.transaction_hash,
-      };
-    });
-
-    res.json({ payments: formatted });
-  } catch (error) {
-    res.status(500).json({ error: String(error), payments: [] });
-  }
+// Get x402 micropayment history from internal ledger
+paymentRoutes.get("/history", (_req, res) => {
+  res.json({ payments: getPaymentLedger() });
 });

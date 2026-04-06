@@ -24,13 +24,51 @@ function getX402Client(): x402HTTPClient {
   return _httpClient;
 }
 
+// ─── In-memory payment ledger ────────────────────────────────────────────────
+// Tracks successful x402 micropayments for the Payment Explorer tab
+export interface PaymentRecord {
+  id: string;
+  type: string;
+  amount: string;
+  asset: string;
+  from: string;
+  to: string;
+  fromLabel: string;
+  toLabel: string;
+  timestamp: string;
+  txHash: string;
+}
+
+const paymentLedger: PaymentRecord[] = [];
+
+export function getPaymentLedger(): PaymentRecord[] {
+  return [...paymentLedger].reverse();
+}
+
+function recordPayment(toLabel: string, toKey: string, amount: string, txHash: string) {
+  const fromKey = process.env.PLATFORM_PUBLIC_KEY || process.env.ORCHESTRATOR_PUBLIC_KEY || "";
+  paymentLedger.push({
+    id: `pay-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    type: "x402_payment",
+    amount,
+    asset: "USDC",
+    from: fromKey,
+    to: toKey,
+    fromLabel: "Platform",
+    toLabel,
+    timestamp: new Date().toISOString(),
+    txHash,
+  });
+}
+
+// ─── x402 fetch ──────────────────────────────────────────────────────────────
+
 async function x402Fetch(
   url: string,
   init: RequestInit = {}
 ): Promise<Response> {
   const client = getX402Client();
 
-  // First request — may return 402
   let response = await fetch(url, init);
 
   if (response.status === 402) {
@@ -43,7 +81,6 @@ async function x402Fetch(
     const paymentPayload = await client.createPaymentPayload(paymentRequired);
     const paymentHeader = client.encodePaymentSignatureHeader(paymentPayload);
 
-    // Retry with payment header
     response = await fetch(url, {
       ...init,
       headers: {
@@ -55,6 +92,8 @@ async function x402Fetch(
 
   return response;
 }
+
+// ─── Agent call helpers ───────────────────────────────────────────────────────
 
 export interface AgentCallResult {
   status: string;
@@ -72,8 +111,11 @@ export async function callScraperAgent(url: string): Promise<AgentCallResult> {
     throw new Error(`Scraper failed: ${response.status} ${await response.text()}`);
   }
 
+  const txHash = response.headers.get("PAYMENT-RESPONSE") || `mock-${Date.now()}`;
+  recordPayment("Scraper", process.env.SCRAPER_PUBLIC_KEY || "", "0.0010000", txHash);
+
   const data = (await response.json()) as { content?: string };
-  return { status: "completed", output: data.content ?? "", amountPaid: 0.001 };
+  return { status: "completed", output: data.content ?? "", amountPaid: 0.001, txHash };
 }
 
 export async function callSummarizerAgent(
@@ -92,8 +134,11 @@ export async function callSummarizerAgent(
     throw new Error(`Summarizer failed: ${response.status} ${await response.text()}`);
   }
 
+  const txHash = response.headers.get("PAYMENT-RESPONSE") || `mock-${Date.now()}`;
+  recordPayment("Summarizer", process.env.SUMMARIZER_PUBLIC_KEY || "", "0.0020000", txHash);
+
   const data = (await response.json()) as { summary?: string };
-  return { status: "completed", output: data.summary ?? "", amountPaid: 0.002 };
+  return { status: "completed", output: data.summary ?? "", amountPaid: 0.002, txHash };
 }
 
 export async function callAnalystAgent(
@@ -112,6 +157,9 @@ export async function callAnalystAgent(
     throw new Error(`Analyst failed: ${response.status} ${await response.text()}`);
   }
 
+  const txHash = response.headers.get("PAYMENT-RESPONSE") || `mock-${Date.now()}`;
+  recordPayment("Analyst", process.env.ANALYST_PUBLIC_KEY || "", "0.0030000", txHash);
+
   const result = (await response.json()) as { report?: string };
-  return { status: "completed", output: result.report ?? "", amountPaid: 0.003 };
+  return { status: "completed", output: result.report ?? "", amountPaid: 0.003, txHash };
 }
