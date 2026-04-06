@@ -96,7 +96,7 @@ export default function TaskResult({ taskId }: { taskId: string }) {
 
       {/* Success result */}
       {isCompleted && task.result && (
-        <div className="bg-[#111827] border border-[#1f2937] rounded-lg p-4 mt-1 slide-in overflow-y-auto max-h-80">
+        <div className="bg-[#111827] border border-[#1f2937] rounded-lg p-4 mt-1 slide-in overflow-y-auto max-h-[600px]">
           <div className="prose prose-invert prose-xs max-w-none
             prose-headings:text-white prose-headings:font-semibold prose-headings:mt-3 prose-headings:mb-1
             prose-h1:text-sm prose-h2:text-sm prose-h3:text-xs

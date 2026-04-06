@@ -10,7 +10,7 @@ import TaskResult from "@/components/TaskResult";
 
 const TAGS = [
   { label: "x402",    color: "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20" },
-  { label: "MPP",     color: "bg-blue-500/10 text-blue-400 border border-blue-500/20" },
+  { label: "MPP",     color: "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20" },
   { label: "Soroban", color: "bg-purple-500/10 text-purple-400 border border-purple-500/20" },
   { label: "Stellar", color: "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20" },
 ];

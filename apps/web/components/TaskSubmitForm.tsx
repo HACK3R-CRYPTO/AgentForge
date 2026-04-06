@@ -28,6 +28,10 @@ export default function TaskSubmitForm({ onTaskCreated }: { onTaskCreated: (id: 
         body: JSON.stringify({ prompt, budget: parseFloat(budget) }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Server rejected the request.");
+        return;
+      }
       onTaskCreated(data.taskId);
       setPrompt("");
     } catch {
@@ -91,13 +95,14 @@ export default function TaskSubmitForm({ onTaskCreated }: { onTaskCreated: (id: 
           </div>
           <div className="grid grid-cols-3 gap-2 mt-2">
             {[
-              { label: "Scraper",    cost: "$0.001" },
-              { label: "Summarizer", cost: "$0.002" },
-              { label: "Analyst",    cost: "$0.003" },
+              { label: "Scraper",    cost: "$0.001", protocol: "x402", protocolColor: "text-indigo-400" },
+              { label: "Summarizer", cost: "$0.002", protocol: "MPP",  protocolColor: "text-cyan-400"   },
+              { label: "Analyst",    cost: "$0.003", protocol: "x402", protocolColor: "text-indigo-400" },
             ].map((a) => (
               <div key={a.label} className="bg-[#111827] border border-[#1f2937] rounded-md px-2 py-1.5 text-center">
                 <p className="text-[10px] text-[#4b5563]">{a.label}</p>
                 <p className="text-xs font-mono text-green-400">{a.cost}</p>
+                <p className={`text-[9px] font-mono mt-0.5 ${a.protocolColor}`}>{a.protocol}</p>
               </div>
             ))}
           </div>

@@ -22,6 +22,11 @@ const CATEGORY_CONFIG: Record<string, { icon: string; color: string; bg: string 
   analyst:    { icon: "📊", color: "text-amber-400",  bg: "bg-amber-500/10"  },
 };
 
+const PROTOCOL_CONFIG: Record<string, { color: string; bg: string; border: string }> = {
+  x402: { color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20" },
+  mpp:  { color: "text-cyan-400",   bg: "bg-cyan-500/10",   border: "border-cyan-500/20"   },
+};
+
 export default function ServiceRegistry() {
   const [services, setServices] = useState<AgentService[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -83,7 +88,7 @@ export default function ServiceRegistry() {
                         <p className="text-[10px] text-[#6b7280] font-mono mt-0.5">{svc.category}</p>
                       </div>
                     </div>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-medium border ${cfg.bg} ${cfg.color} border-current/20`}>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-medium border ${PROTOCOL_CONFIG[svc.paymentType].bg} ${PROTOCOL_CONFIG[svc.paymentType].color} ${PROTOCOL_CONFIG[svc.paymentType].border}`}>
                       {svc.paymentType.toUpperCase()}
                     </span>
                   </div>
