@@ -35,6 +35,8 @@ export default function ServiceRegistry() {
       finally { setLoading(false); }
     }
     fetch_();
+    const t = setInterval(fetch_, 5000);
+    return () => clearInterval(t);
   }, []);
 
   return (

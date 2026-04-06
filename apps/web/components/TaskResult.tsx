@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import ReactMarkdown from "react-markdown";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4021";
 
 interface TaskData {
   id: string;
   prompt: string;
+  budget: number;
   status: "running" | "completed" | "failed";
   result?: string;
   createdAt: number;
@@ -30,7 +32,6 @@ export default function TaskResult({ taskId }: { taskId: string }) {
 
     poll();
     interval = setInterval(poll, 2000);
-
     const timer = setInterval(() => setElapsed((e) => e + 1), 1000);
 
     return () => {
@@ -44,6 +45,10 @@ export default function TaskResult({ taskId }: { taskId: string }) {
   const isRunning   = task.status === "running";
   const isCompleted = task.status === "completed";
   const isFailed    = task.status === "failed";
+
+  // Rough cost estimate from result text or default
+  const costMatch = task.result?.match(/\$(\d+\.\d+)\s*USDC/);
+  const estimatedCost = costMatch ? costMatch[1] : "0.006";
 
   return (
     <div className={`card p-5 transition-all ${isCompleted ? "border-green-500/30 glow-green" : isFailed ? "border-red-500/30" : "border-indigo-500/30 glow-indigo"}`}>
@@ -59,7 +64,12 @@ export default function TaskResult({ taskId }: { taskId: string }) {
             <span className="text-xs text-[#4b5563] font-mono">{elapsed}s</span>
           )}
         </div>
-        <span className="font-mono text-[10px] text-[#374151]">{taskId.slice(-12)}</span>
+        {isCompleted && (
+          <span className="text-green-400 font-mono text-xs font-semibold">${estimatedCost} USDC spent</span>
+        )}
+        {!isCompleted && (
+          <span className="font-mono text-[10px] text-[#374151]">{taskId.slice(-12)}</span>
+        )}
       </div>
 
       <p className="text-xs text-[#6b7280] mb-3 italic">"{task.prompt}"</p>
@@ -76,8 +86,18 @@ export default function TaskResult({ taskId }: { taskId: string }) {
       )}
 
       {isCompleted && task.result && (
-        <div className="bg-[#111827] border border-[#1f2937] rounded-lg p-3 mt-1 slide-in">
-          <p className="text-xs text-[#9ca3af] whitespace-pre-wrap leading-relaxed">{task.result}</p>
+        <div className="bg-[#111827] border border-[#1f2937] rounded-lg p-4 mt-1 slide-in overflow-y-auto max-h-80">
+          <div className="prose prose-invert prose-xs max-w-none
+            prose-headings:text-white prose-headings:font-semibold prose-headings:mt-3 prose-headings:mb-1
+            prose-h1:text-sm prose-h2:text-sm prose-h3:text-xs
+            prose-p:text-[#9ca3af] prose-p:text-xs prose-p:leading-relaxed prose-p:my-1
+            prose-strong:text-white prose-strong:font-semibold
+            prose-li:text-[#9ca3af] prose-li:text-xs
+            prose-table:text-xs prose-td:text-[#9ca3af] prose-th:text-white prose-th:font-medium
+            prose-code:text-indigo-300 prose-code:text-[10px] prose-code:bg-[#1f2937] prose-code:px-1 prose-code:rounded
+            prose-blockquote:border-indigo-500 prose-blockquote:text-[#6b7280]">
+            <ReactMarkdown>{task.result}</ReactMarkdown>
+          </div>
         </div>
       )}
 
