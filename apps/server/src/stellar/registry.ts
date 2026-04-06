@@ -237,12 +237,26 @@ export async function getAllServices(): Promise<AgentService[]> {
       const native = StellarSdk.scValToNative(retval) as Record<string, unknown>[];
       if (Array.isArray(native) && native.length > 0) {
         const onChain = native.map(parseContractService);
-        // Merge in-memory call counts (on-chain record_call also increments but may lag)
-        return onChain.map((s) => ({
+
+        // Deduplicate by category — keep the last registered entry (highest numeric id)
+        // This cleans up duplicates caused by re-registration before idempotency fix.
+        const seen = new Map<string, AgentService>();
+        for (const s of onChain) {
+          const prev = seen.get(s.category);
+          if (!prev || Number(s.id) > Number(prev.id)) seen.set(s.category, s);
+        }
+        const deduped = Array.from(seen.values());
+
+        // Correct payment type from in-memory source of truth — on-chain may have
+        // stale data if it was registered before the paymentTypeNum fix.
+        const inMemoryMap = new Map(services.map((s) => [s.category, s]));
+
+        return deduped.map((s) => ({
           ...s,
+          paymentType: inMemoryMap.get(s.category)?.paymentType ?? s.paymentType,
           totalCalls: Math.max(
             s.totalCalls,
-            services.find((m) => m.category === s.category)?.totalCalls ?? 0
+            inMemoryMap.get(s.category)?.totalCalls ?? 0
           ),
         }));
       }

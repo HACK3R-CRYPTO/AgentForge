@@ -3,17 +3,17 @@
 // signs a Soroban auth entry and the server submits the transaction.
 
 import { charge } from "@stellar/mpp/charge/server";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-import { Mppx } from "mppx/server";
+// mppx/express wraps each intent as a real Express RequestHandler
+import { Mppx } from "mppx/express";
 import type { Request as ExpressReq, Response as ExpressRes, NextFunction } from "express";
 
 const MPP_AMOUNT = "0.002"; // 0.002 USDC per summarizer call (display units)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _server: any = null;
+let _middleware: any = null;
 
-function getMppServer() {
-  if (_server) return _server;
+function getMppMiddleware() {
+  if (_middleware) return _middleware;
 
   const recipient = process.env.SUMMARIZER_PUBLIC_KEY;
   const currency = process.env.USDC_CONTRACT_ID;
@@ -25,7 +25,10 @@ function getMppServer() {
     );
   }
 
-  _server = Mppx.create({
+  // Mppx.create from mppx/express returns an object where each transport method
+  // (.stellar.charge, .tempo.charge, etc.) is already an Express RequestHandler factory.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const server: any = Mppx.create({
     methods: [
       charge({
         recipient,
@@ -38,7 +41,9 @@ function getMppServer() {
     secretKey: process.env.MPP_SECRET_KEY || process.env.SUMMARIZER_SECRET_KEY || "agentforge-mpp-dev",
   });
 
-  return _server;
+  // .stellar.charge({ amount }) returns an Express middleware directly
+  _middleware = server.stellar.charge({ amount: MPP_AMOUNT });
+  return _middleware;
 }
 
 /**
@@ -47,23 +52,8 @@ function getMppServer() {
  */
 export async function mppGuard(req: ExpressReq, res: ExpressRes, next: NextFunction) {
   try {
-    const server = getMppServer();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handler = (server as any).stellar.charge({ amount: MPP_AMOUNT });
-
-    // toNodeListener was renamed in mppx — access via dynamic import at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { toNodeListener, NodeListener } = await import("mppx/server") as any;
-    const listener = toNodeListener ?? NodeListener;
-    const result = await listener(handler)(req as any, res as any);
-
-    if (result.status === 402) {
-      // Challenge written to response by toNodeListener — stop here
-      return;
-    }
-
-    // Payment verified — Payment-Receipt header already set, continue to handler
-    next();
+    const middleware = getMppMiddleware();
+    await middleware(req, res, next);
   } catch (err) {
     const message = String(err);
     console.error("[MPP] Guard error:", message);
