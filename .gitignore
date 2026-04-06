@@ -8,3 +8,5 @@ target/
 *.wasm
 *.d
 .DS_Store
+PITCH_DECK.md
+*.bak
