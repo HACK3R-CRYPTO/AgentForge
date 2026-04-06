@@ -3,12 +3,14 @@
 // signs a Soroban auth entry and the server submits the transaction.
 
 import { charge } from "@stellar/mpp/charge/server";
-import { Mppx, toNodeListener } from "mppx/server";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+import { Mppx } from "mppx/server";
 import type { Request as ExpressReq, Response as ExpressRes, NextFunction } from "express";
 
 const MPP_AMOUNT = "0.002"; // 0.002 USDC per summarizer call (display units)
 
-let _server: ReturnType<typeof Mppx.create> | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _server: any = null;
 
 function getMppServer() {
   if (_server) return _server;
@@ -46,9 +48,14 @@ function getMppServer() {
 export async function mppGuard(req: ExpressReq, res: ExpressRes, next: NextFunction) {
   try {
     const server = getMppServer();
-    const handler = server.stellar.charge({ amount: MPP_AMOUNT });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handler = (server as any).stellar.charge({ amount: MPP_AMOUNT });
 
-    const result = await toNodeListener(handler)(req as any, res as any);
+    // toNodeListener was renamed in mppx — access via dynamic import at runtime
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { toNodeListener, NodeListener } = await import("mppx/server") as any;
+    const listener = toNodeListener ?? NodeListener;
+    const result = await listener(handler)(req as any, res as any);
 
     if (result.status === 402) {
       // Challenge written to response by toNodeListener — stop here
