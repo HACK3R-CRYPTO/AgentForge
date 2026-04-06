@@ -1,13 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-const anthropic = new Anthropic();
+let _anthropic: Anthropic | null = null;
+const getAnthropic = () => {
+  if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return _anthropic;
+};
 
 export async function scrapeUrl(url: string): Promise<string> {
-  // Fetch the URL content
   const response = await fetch(url, {
-    headers: {
-      "User-Agent": "AgentForge-Scraper/1.0",
-    },
+    headers: { "User-Agent": "AgentForge-Scraper/1.0" },
   });
 
   if (!response.ok) {
@@ -16,9 +17,8 @@ export async function scrapeUrl(url: string): Promise<string> {
 
   const html = await response.text();
 
-  // Use Claude to extract meaningful content from HTML
-  const extraction = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+  const extraction = await getAnthropic().messages.create({
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 2048,
     messages: [
       {
@@ -28,6 +28,6 @@ export async function scrapeUrl(url: string): Promise<string> {
     ],
   });
 
-  const textBlock = extraction.content.find((b) => b.type === "text");
+  const textBlock = extraction.content.find((b: Anthropic.ContentBlock) => b.type === "text") as Anthropic.TextBlock | undefined;
   return textBlock?.text || "No content extracted";
 }

@@ -10,8 +10,9 @@ let _httpClient: x402HTTPClient | null = null;
 function getX402Client(): x402HTTPClient {
   if (_httpClient) return _httpClient;
 
-  const secretKey = process.env.ORCHESTRATOR_SECRET_KEY;
-  if (!secretKey) throw new Error("ORCHESTRATOR_SECRET_KEY not set");
+  // Use PLATFORM wallet (not orchestrator/issuer) so x402 creates real USDC transfers, not mints
+  const secretKey = process.env.PLATFORM_SECRET_KEY || process.env.ORCHESTRATOR_SECRET_KEY;
+  if (!secretKey) throw new Error("PLATFORM_SECRET_KEY not set");
 
   const signer = createEd25519Signer(secretKey);
   const stellarScheme = new ExactStellarScheme(signer);

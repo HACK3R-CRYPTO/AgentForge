@@ -62,6 +62,7 @@ paymentRoutes.get("/history", async (req, res) => {
     // Agent address → label map for readable display
     const agentLabels: Record<string, string> = {
       [process.env.ORCHESTRATOR_PUBLIC_KEY ?? ""]: "Orchestrator",
+      [process.env.PLATFORM_PUBLIC_KEY     ?? ""]: "Platform",
       [process.env.SCRAPER_PUBLIC_KEY      ?? ""]: "Scraper",
       [process.env.SUMMARIZER_PUBLIC_KEY   ?? ""]: "Summarizer",
       [process.env.ANALYST_PUBLIC_KEY      ?? ""]: "Analyst",

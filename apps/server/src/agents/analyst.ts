@@ -1,6 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-const anthropic = new Anthropic();
+let _anthropic: Anthropic | null = null;
+const getAnthropic = () => {
+  if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return _anthropic;
+};
 
 interface AnalysisReport {
   title: string;
@@ -14,8 +18,8 @@ export async function analyzeData(
   data: string,
   question: string
 ): Promise<AnalysisReport> {
-  const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+  const response = await getAnthropic().messages.create({
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 2048,
     messages: [
       {
@@ -37,7 +41,7 @@ ${data}`,
     ],
   });
 
-  const textBlock = response.content.find((b) => b.type === "text");
+  const textBlock = response.content.find((b: Anthropic.ContentBlock) => b.type === "text") as Anthropic.TextBlock | undefined;
   try {
     // Extract JSON from the response (handle markdown code blocks)
     const text = textBlock?.text || "{}";
