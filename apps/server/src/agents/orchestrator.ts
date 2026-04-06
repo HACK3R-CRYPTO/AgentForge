@@ -132,7 +132,7 @@ Decompose this task, discover agents, check budget, and hire them to complete th
     iterationCount++;
 
     const response = await getAnthropic().messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 4096,
       tools: TOOLS,
       messages,

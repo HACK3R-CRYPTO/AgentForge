@@ -9,4 +9,5 @@ target/
 *.d
 .DS_Store
 PITCH_DECK.md
+DEMO_SCRIPT.md
 *.bak

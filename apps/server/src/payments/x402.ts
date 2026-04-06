@@ -7,7 +7,7 @@ import { ExactStellarScheme } from "@x402/stellar/exact/server";
 
 const USDC =
   process.env.USDC_CONTRACT_ID ||
-  "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA";
+  "CAULEYYQXBNXV5P6TD6KFH477PULW4Y4BDK5IMASUJXHTCUMYWTOB5W6";
 
 export function createX402Middleware() {
   const scraperPayTo = process.env.SCRAPER_PUBLIC_KEY!;
