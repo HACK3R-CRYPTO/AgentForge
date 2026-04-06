@@ -46,7 +46,8 @@ export default function TaskResult({ taskId }: { taskId: string }) {
   const isCompleted = task.status === "completed";
   const isFailed    = task.status === "failed";
 
-  const costMatch     = task.result?.match(/\$(\d+\.\d+)\s*USDC/);
+  // Match "Total cost: $0.006 USDC" style — avoid matching budget caps like "$0.50 USDC"
+  const costMatch     = task.result?.match(/[Tt]otal\s+(?:cost|spent)[^$]*\$([\d.]+)\s*USDC/);
   const estimatedCost = costMatch ? costMatch[1] : "0.006";
 
   // Detect if the result is an error message
