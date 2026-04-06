@@ -3,6 +3,7 @@ import { scrapeUrl } from "../agents/scraper.js";
 import { summarizeText } from "../agents/summarizer.js";
 import { analyzeData } from "../agents/analyst.js";
 import { getAllServices } from "../stellar/registry.js";
+import { mppGuard } from "../payments/mpp-server.js";
 
 export const agentRoutes = Router();
 
@@ -28,8 +29,8 @@ agentRoutes.get("/scraper", async (req, res) => {
   }
 });
 
-// Summarizer agent endpoint (MPP gated)
-agentRoutes.post("/summarizer", async (req, res) => {
+// Summarizer agent endpoint — MPP Charge gated (distinct from x402)
+agentRoutes.post("/summarizer", mppGuard, async (req, res) => {
   const { text, style = "brief" } = req.body;
   if (!text) {
     res.status(400).json({ error: "text field required" });

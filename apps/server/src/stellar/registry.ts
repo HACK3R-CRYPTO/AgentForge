@@ -39,7 +39,7 @@ const services: AgentService[] = [
     description: "Summarizes text content using AI",
     endpoint: `http://localhost:${process.env.PORT || 4021}/api/agents/summarizer`,
     price: 0.002,
-    paymentType: "x402",
+    paymentType: "mpp",
     category: "summarizer",
     reputationScore: 100,
     totalCalls: 0,

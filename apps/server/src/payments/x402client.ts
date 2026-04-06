@@ -104,6 +104,16 @@ async function x402Fetch(
 
 // ─── Agent call helpers ───────────────────────────────────────────────────────
 
+// Lazy import to avoid circular deps at module load time
+let _callSummarizerViaMpp: ((text: string, style?: string) => Promise<{ output: unknown; amountPaid: number; txHash: string }>) | null = null;
+async function getMppSummarizer() {
+  if (!_callSummarizerViaMpp) {
+    const mod = await import("./mpp-client.js");
+    _callSummarizerViaMpp = mod.callSummarizerViaMpp;
+  }
+  return _callSummarizerViaMpp;
+}
+
 export interface AgentCallResult {
   status: string;
   output: unknown;
@@ -131,23 +141,13 @@ export async function callSummarizerAgent(
   text: string,
   style = "brief"
 ): Promise<AgentCallResult> {
-  const base = `http://localhost:${process.env.PORT || 4021}`;
-  const endpoint = `${base}/api/agents/summarizer`;
+  // Summarizer uses MPP Charge (distinct payment rail from x402)
+  const callViaMpp = await getMppSummarizer();
+  const mppResult = await callViaMpp(text, style);
 
-  const response = await x402Fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, style }),
-  });
-  if (!response.ok) {
-    throw new Error(`Summarizer failed: ${response.status} ${await response.text()}`);
-  }
+  recordPayment("Summarizer", process.env.SUMMARIZER_PUBLIC_KEY || "", "0.0020000", mppResult.txHash);
 
-  const txHash = response.headers.get("PAYMENT-RESPONSE") || `mock-${Date.now()}`;
-  recordPayment("Summarizer", process.env.SUMMARIZER_PUBLIC_KEY || "", "0.0020000", txHash);
-
-  const data = (await response.json()) as { summary?: string };
-  return { status: "completed", output: data.summary ?? "", amountPaid: 0.002, txHash };
+  return { status: "completed", output: mppResult.output, amountPaid: 0.002, txHash: mppResult.txHash };
 }
 
 export async function callAnalystAgent(
