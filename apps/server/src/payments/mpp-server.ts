@@ -41,8 +41,8 @@ function getMppMiddleware() {
     secretKey: process.env.MPP_SECRET_KEY || process.env.SUMMARIZER_SECRET_KEY || "agentforge-mpp-dev",
   });
 
-  // .stellar.charge({ amount }) returns an Express middleware directly
-  _middleware = server.stellar.charge({ amount: MPP_AMOUNT });
+  // .charge({ amount }) returns an Express middleware directly (mppx/express wraps it)
+  _middleware = server.charge({ amount: MPP_AMOUNT });
   return _middleware;
 }
 
