@@ -6,6 +6,9 @@ import dotenv from "dotenv";
 import { taskRoutes } from "./routes/tasks.js";
 import { agentRoutes } from "./routes/agents.js";
 import { paymentRoutes } from "./routes/payments.js";
+import { scrapeUrl } from "./agents/scraper.js";
+import { summarizeText } from "./agents/summarizer.js";
+import { analyzeData } from "./agents/analyst.js";
 import { setupActivityFeed } from "./websocket/activity.js";
 import { startFacilitator } from "./payments/facilitator.js";
 import { createX402Middleware } from "./payments/x402.js";
@@ -25,6 +28,32 @@ startFacilitator();
 // Health check (no payment required)
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "agentforge" });
+});
+
+// Internal agent test — bypasses x402 so you can verify each agent works
+app.get("/test/scraper", async (req, res) => {
+  const url = (req.query.url as string) || "https://stellar.org";
+  try {
+    const content = await scrapeUrl(url);
+    res.json({ agent: "scraper", url, contentLength: content.length, preview: content.slice(0, 300) });
+  } catch (e) { res.status(500).json({ error: String(e) }); }
+});
+
+app.get("/test/summarizer", async (req, res) => {
+  const text = (req.query.text as string) || "Stellar is a blockchain network that enables fast, low-cost payments. It supports smart contracts via Soroban and has USDC natively on the network.";
+  try {
+    const summary = await summarizeText(text, "brief");
+    res.json({ agent: "summarizer", summary });
+  } catch (e) { res.status(500).json({ error: String(e) }); }
+});
+
+app.get("/test/analyst", async (req, res) => {
+  const data = "Soroswap TVL: $2M. Aquarius TVL: $15M. Phoenix TVL: $800K.";
+  const question = "Which Stellar DeFi project has the highest TVL?";
+  try {
+    const report = await analyzeData(data, question);
+    res.json({ agent: "analyst", report });
+  } catch (e) { res.status(500).json({ error: String(e) }); }
 });
 
 // API routes

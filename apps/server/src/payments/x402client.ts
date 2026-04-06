@@ -45,7 +45,16 @@ export function getPaymentLedger(): PaymentRecord[] {
   return [...paymentLedger].reverse();
 }
 
-function recordPayment(toLabel: string, toKey: string, amount: string, txHash: string) {
+function extractTxHash(rawHeader: string): string {
+  try {
+    const decoded = JSON.parse(Buffer.from(rawHeader, "base64").toString());
+    return decoded.transaction || rawHeader;
+  } catch {
+    return rawHeader;
+  }
+}
+
+function recordPayment(toLabel: string, toKey: string, amount: string, rawTxHash: string) {
   const fromKey = process.env.PLATFORM_PUBLIC_KEY || process.env.ORCHESTRATOR_PUBLIC_KEY || "";
   paymentLedger.push({
     id: `pay-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -57,7 +66,7 @@ function recordPayment(toLabel: string, toKey: string, amount: string, txHash: s
     fromLabel: "Platform",
     toLabel,
     timestamp: new Date().toISOString(),
-    txHash,
+    txHash: extractTxHash(rawTxHash),
   });
 }
 
