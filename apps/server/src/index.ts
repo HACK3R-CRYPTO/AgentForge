@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import { createServer } from "http";
 import { WebSocketServer } from "ws";
 import dotenv from "dotenv";
@@ -13,29 +14,64 @@ import { setupActivityFeed } from "./websocket/activity.js";
 import { startFacilitator } from "./payments/facilitator.js";
 import { createX402Middleware } from "./payments/x402.js";
 import { initRegistry } from "./stellar/registry.js";
+import { sorobanRpc } from "./stellar/client.js";
 
 dotenv.config();
 
-const app = express();
+// ─── Startup contract health check ───────────────────────────────────────────
+async function checkContracts() {
+  const registryId = process.env.SERVICE_REGISTRY_CONTRACT_ID;
+  const policyId   = process.env.SPENDING_POLICY_CONTRACT_ID;
+
+  if (!registryId || !policyId) {
+    console.warn("⚠  CONTRACT IDs not set — Soroban integration disabled. Set SERVICE_REGISTRY_CONTRACT_ID and SPENDING_POLICY_CONTRACT_ID in .env");
+    return;
+  }
+
+  try {
+    // Ping the RPC to confirm it's reachable and contracts exist
+    await sorobanRpc.getLatestLedger();
+    console.log("✓  Soroban RPC reachable");
+    console.log(`✓  ServiceRegistry: ${registryId}`);
+    console.log(`✓  SpendingPolicy:  ${policyId}`);
+  } catch (err) {
+    console.error("✗  Soroban RPC unreachable:", String(err).slice(0, 120));
+    console.error("   On-chain registry and policy calls will fall back to in-memory.");
+  }
+}
+
+const app    = express();
 const server = createServer(app);
-const wss = new WebSocketServer({ server });
+const wss    = new WebSocketServer({ server });
 
 app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:3000" }));
 app.use(express.json());
 
-// Start x402 facilitator on port 4022
+// ─── Rate limiting ────────────────────────────────────────────────────────────
+const taskLimiter = rateLimit({ windowMs: 60_000, max: 20, message: { error: "Too many task submissions — try again in a minute" } });
+const testLimiter = rateLimit({ windowMs: 60_000, max: 10, message: { error: "Too many test requests" } });
+
+// ─── Start services ───────────────────────────────────────────────────────────
 startFacilitator();
-
-// Register agents on Soroban ServiceRegistry (fire-and-forget)
-initRegistry().catch((err) => console.warn("[Registry] init error:", err));
-
-// Health check (no payment required)
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok", service: "agentforge" });
+checkContracts().then(() => {
+  initRegistry().catch((err) => console.warn("[Registry] init error:", err));
 });
 
-// Internal agent test — bypasses x402 so you can verify each agent works
-app.get("/test/scraper", async (req, res) => {
+// ─── Health ───────────────────────────────────────────────────────────────────
+app.get("/health", (_req, res) => {
+  res.json({
+    status: "ok",
+    service: "agentforge",
+    contracts: {
+      serviceRegistry: process.env.SERVICE_REGISTRY_CONTRACT_ID || "not set",
+      spendingPolicy:  process.env.SPENDING_POLICY_CONTRACT_ID  || "not set",
+    },
+    mockMode: process.env.MOCK_MODE === "true",
+  });
+});
+
+// ─── Debug test endpoints (rate-limited, bypasses payment) ───────────────────
+app.get("/test/scraper", testLimiter, async (req, res) => {
   const url = (req.query.url as string) || "https://stellar.org";
   try {
     const content = await scrapeUrl(url);
@@ -43,7 +79,7 @@ app.get("/test/scraper", async (req, res) => {
   } catch (e) { res.status(500).json({ error: String(e) }); }
 });
 
-app.get("/test/summarizer", async (req, res) => {
+app.get("/test/summarizer", testLimiter, async (req, res) => {
   const text = (req.query.text as string) || "Stellar is a blockchain network that enables fast, low-cost payments. It supports smart contracts via Soroban and has USDC natively on the network.";
   try {
     const summary = await summarizeText(text, "brief");
@@ -51,8 +87,8 @@ app.get("/test/summarizer", async (req, res) => {
   } catch (e) { res.status(500).json({ error: String(e) }); }
 });
 
-app.get("/test/analyst", async (req, res) => {
-  const data = "Soroswap TVL: $2M. Aquarius TVL: $15M. Phoenix TVL: $800K.";
+app.get("/test/analyst", testLimiter, async (_req, res) => {
+  const data     = "Soroswap TVL: $2M. Aquarius TVL: $15M. Phoenix TVL: $800K.";
   const question = "Which Stellar DeFi project has the highest TVL?";
   try {
     const report = await analyzeData(data, question);
@@ -60,26 +96,23 @@ app.get("/test/analyst", async (req, res) => {
   } catch (e) { res.status(500).json({ error: String(e) }); }
 });
 
-// API routes
-app.use("/api/tasks", taskRoutes);
+// ─── API routes ───────────────────────────────────────────────────────────────
+app.use("/api/tasks", taskLimiter, taskRoutes);
 
-// Apply x402 payment middleware to agent routes
 app.use(createX402Middleware());
 app.use("/api/agents", agentRoutes);
 
 app.use("/api/payments", paymentRoutes);
 
-// WebSocket activity feed
 setupActivityFeed(wss);
 
+// ─── Start server ─────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 4021;
 server.listen(PORT, () => {
-  console.log(`AgentForge server running on port ${PORT}`);
-  console.log(`x402 Facilitator running on port ${process.env.FACILITATOR_PORT || 4022}`);
-  console.log(`WebSocket activity feed on ws://localhost:${PORT}`);
-  console.log(`\nContracts:`);
-  console.log(`  ServiceRegistry: ${process.env.SERVICE_REGISTRY_CONTRACT_ID}`);
-  console.log(`  SpendingPolicy:  ${process.env.SPENDING_POLICY_CONTRACT_ID}`);
+  console.log(`\nAgentForge server  →  http://localhost:${PORT}`);
+  console.log(`x402 Facilitator   →  http://localhost:${process.env.FACILITATOR_PORT || 4022}`);
+  console.log(`WebSocket feed     →  ws://localhost:${PORT}`);
+  console.log(`Mock mode: ${process.env.MOCK_MODE === "true" ? "ON (no real AI/payments)" : "OFF (live)"}\n`);
 });
 
 export { app, wss };

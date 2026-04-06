@@ -23,7 +23,7 @@ export default function TaskResult({ taskId }: { taskId: string }) {
 
     async function poll() {
       try {
-        const r  = await fetch(`${API_URL}/api/tasks/${taskId}`);
+        const r    = await fetch(`${API_URL}/api/tasks/${taskId}`);
         const data: TaskData = await r.json();
         setTask(data);
         if (data.status !== "running") clearInterval(interval);
@@ -46,12 +46,19 @@ export default function TaskResult({ taskId }: { taskId: string }) {
   const isCompleted = task.status === "completed";
   const isFailed    = task.status === "failed";
 
-  // Rough cost estimate from result text or default
-  const costMatch = task.result?.match(/\$(\d+\.\d+)\s*USDC/);
+  const costMatch     = task.result?.match(/\$(\d+\.\d+)\s*USDC/);
   const estimatedCost = costMatch ? costMatch[1] : "0.006";
 
+  // Detect if the result is an error message
+  const isErrorResult = isFailed && task.result?.startsWith("Error:");
+
   return (
-    <div className={`card p-5 transition-all ${isCompleted ? "border-green-500/30 glow-green" : isFailed ? "border-red-500/30" : "border-indigo-500/30 glow-indigo"}`}>
+    <div className={`card p-5 transition-all ${
+      isCompleted ? "border-green-500/30 glow-green"
+      : isFailed  ? "border-red-500/30"
+      : "border-indigo-500/30 glow-indigo"
+    }`}>
+      {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           {isRunning   && <span className="w-2 h-2 rounded-full bg-indigo-400 pulse-dot inline-block" />}
@@ -74,6 +81,7 @@ export default function TaskResult({ taskId }: { taskId: string }) {
 
       <p className="text-xs text-[#6b7280] mb-3 italic">"{task.prompt}"</p>
 
+      {/* Running skeleton */}
       {isRunning && (
         <div className="space-y-2">
           {["Decomposing task…", "Querying ServiceRegistry…", "Checking SpendingPolicy…"].map((s, i) => (
@@ -85,6 +93,7 @@ export default function TaskResult({ taskId }: { taskId: string }) {
         </div>
       )}
 
+      {/* Success result */}
       {isCompleted && task.result && (
         <div className="bg-[#111827] border border-[#1f2937] rounded-lg p-4 mt-1 slide-in overflow-y-auto max-h-80">
           <div className="prose prose-invert prose-xs max-w-none
@@ -101,9 +110,24 @@ export default function TaskResult({ taskId }: { taskId: string }) {
         </div>
       )}
 
-      {isFailed && task.result && (
-        <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 mt-1">
-          <p className="text-xs text-red-400 leading-relaxed">{task.result}</p>
+      {/* Failure result */}
+      {isFailed && (
+        <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-4 mt-1 slide-in">
+          <div className="flex items-start gap-2 mb-2">
+            <span className="text-red-400 text-xs font-semibold">Task failed</span>
+          </div>
+          {task.result ? (
+            <>
+              <p className="text-xs text-red-300 leading-relaxed font-mono break-all">
+                {isErrorResult ? task.result.replace(/^Error:\s*/, "") : task.result}
+              </p>
+              <p className="text-[10px] text-[#4b5563] mt-3">
+                Check server logs for details. Common causes: insufficient USDC balance, RPC timeout, or Anthropic API error.
+              </p>
+            </>
+          ) : (
+            <p className="text-xs text-[#6b7280]">No error details available.</p>
+          )}
         </div>
       )}
     </div>

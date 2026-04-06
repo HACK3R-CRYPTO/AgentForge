@@ -10,7 +10,6 @@ let _httpClient: x402HTTPClient | null = null;
 function getX402Client(): x402HTTPClient {
   if (_httpClient) return _httpClient;
 
-  // Use PLATFORM wallet (not orchestrator/issuer) so x402 creates real USDC transfers, not mints
   const secretKey = process.env.PLATFORM_SECRET_KEY || process.env.ORCHESTRATOR_SECRET_KEY;
   if (!secretKey) throw new Error("PLATFORM_SECRET_KEY not set");
 
@@ -24,10 +23,10 @@ function getX402Client(): x402HTTPClient {
   return _httpClient;
 }
 
-// ─── In-memory payment ledger ────────────────────────────────────────────────
-// Tracks successful x402 micropayments for the Payment Explorer tab
+// ─── In-memory payment ledger ─────────────────────────────────────────────────
 export interface PaymentRecord {
   id: string;
+  protocol: "x402" | "mpp";   // payment rail used
   type: string;
   amount: string;
   asset: string;
@@ -39,6 +38,7 @@ export interface PaymentRecord {
   txHash: string;
 }
 
+const MAX_LEDGER_SIZE = 1000;
 const paymentLedger: PaymentRecord[] = [];
 
 export function getPaymentLedger(): PaymentRecord[] {
@@ -54,28 +54,47 @@ function extractTxHash(rawHeader: string): string {
   }
 }
 
-function recordPayment(toLabel: string, toKey: string, amount: string, rawTxHash: string) {
-  const fromKey = process.env.PLATFORM_PUBLIC_KEY || process.env.ORCHESTRATOR_PUBLIC_KEY || "";
+export function recordPayment(
+  toLabel: string,
+  toKey: string,
+  amount: string,
+  rawTxHash: string,
+  protocol: "x402" | "mpp" = "x402",
+  fromLabel = "Platform",
+  fromKey?: string
+) {
+  const resolvedFromKey = fromKey ?? (process.env.PLATFORM_PUBLIC_KEY || process.env.ORCHESTRATOR_PUBLIC_KEY || "");
+  const txHash = extractTxHash(rawTxHash);
+
+  // Skip obviously mock hashes — don't pollute ledger with failures
+  if (txHash.startsWith("mock-")) {
+    console.warn(`[Ledger] Skipping mock tx hash for ${toLabel} — payment may have failed`);
+    return;
+  }
+
+  // Cap ledger size
+  if (paymentLedger.length >= MAX_LEDGER_SIZE) {
+    paymentLedger.shift();
+  }
+
   paymentLedger.push({
     id: `pay-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    type: "x402_payment",
+    protocol,
+    type: `${protocol}_payment`,
     amount,
     asset: "USDC",
-    from: fromKey,
+    from: resolvedFromKey,
     to: toKey,
-    fromLabel: "Platform",
+    fromLabel,
     toLabel,
     timestamp: new Date().toISOString(),
-    txHash: extractTxHash(rawTxHash),
+    txHash,
   });
 }
 
 // ─── x402 fetch ──────────────────────────────────────────────────────────────
 
-async function x402Fetch(
-  url: string,
-  init: RequestInit = {}
-): Promise<Response> {
+async function x402Fetch(url: string, init: RequestInit = {}): Promise<Response> {
   const client = getX402Client();
 
   let response = await fetch(url, init);
@@ -93,7 +112,7 @@ async function x402Fetch(
     response = await fetch(url, {
       ...init,
       headers: {
-        ...(init.headers as Record<string, string> || {}),
+        ...((init.headers as Record<string, string>) || {}),
         ...paymentHeader,
       },
     });
@@ -104,7 +123,6 @@ async function x402Fetch(
 
 // ─── Agent call helpers ───────────────────────────────────────────────────────
 
-// Lazy import to avoid circular deps at module load time
 let _callSummarizerViaMpp: ((text: string, style?: string) => Promise<{ output: unknown; amountPaid: number; txHash: string }>) | null = null;
 async function getMppSummarizer() {
   if (!_callSummarizerViaMpp) {
@@ -130,30 +148,25 @@ export async function callScraperAgent(url: string): Promise<AgentCallResult> {
     throw new Error(`Scraper failed: ${response.status} ${await response.text()}`);
   }
 
-  const txHash = response.headers.get("PAYMENT-RESPONSE") || `mock-${Date.now()}`;
-  recordPayment("Scraper", process.env.SCRAPER_PUBLIC_KEY || "", "0.0010000", txHash);
+  const txHeader = response.headers.get("PAYMENT-RESPONSE") || "";
+  if (!txHeader) console.warn("[x402] No PAYMENT-RESPONSE header from scraper");
+  recordPayment("Scraper", process.env.SCRAPER_PUBLIC_KEY || "", "0.0010000", txHeader || `mock-${Date.now()}`, "x402");
 
   const data = (await response.json()) as { content?: string };
-  return { status: "completed", output: data.content ?? "", amountPaid: 0.001, txHash };
+  return { status: "completed", output: data.content ?? "", amountPaid: 0.001, txHash: txHeader };
 }
 
-export async function callSummarizerAgent(
-  text: string,
-  style = "brief"
-): Promise<AgentCallResult> {
-  // Summarizer uses MPP Charge (distinct payment rail from x402)
+export async function callSummarizerAgent(text: string, style = "brief"): Promise<AgentCallResult> {
   const callViaMpp = await getMppSummarizer();
   const mppResult = await callViaMpp(text, style);
 
-  recordPayment("Summarizer", process.env.SUMMARIZER_PUBLIC_KEY || "", "0.0020000", mppResult.txHash);
+  // Record with protocol=mpp so Payment Explorer shows correct label
+  recordPayment("Summarizer", process.env.SUMMARIZER_PUBLIC_KEY || "", "0.0020000", mppResult.txHash, "mpp");
 
   return { status: "completed", output: mppResult.output, amountPaid: 0.002, txHash: mppResult.txHash };
 }
 
-export async function callAnalystAgent(
-  data: string,
-  question: string
-): Promise<AgentCallResult> {
+export async function callAnalystAgent(data: string, question: string): Promise<AgentCallResult> {
   const base = `http://localhost:${process.env.PORT || 4021}`;
   const endpoint = `${base}/api/agents/analyst`;
 
@@ -166,9 +179,10 @@ export async function callAnalystAgent(
     throw new Error(`Analyst failed: ${response.status} ${await response.text()}`);
   }
 
-  const txHash = response.headers.get("PAYMENT-RESPONSE") || `mock-${Date.now()}`;
-  recordPayment("Analyst", process.env.ANALYST_PUBLIC_KEY || "", "0.0030000", txHash);
+  const txHeader = response.headers.get("PAYMENT-RESPONSE") || "";
+  if (!txHeader) console.warn("[x402] No PAYMENT-RESPONSE header from analyst");
+  recordPayment("Analyst", process.env.ANALYST_PUBLIC_KEY || "", "0.0030000", txHeader || `mock-${Date.now()}`, "x402");
 
   const result = (await response.json()) as { report?: string };
-  return { status: "completed", output: result.report ?? "", amountPaid: 0.003, txHash };
+  return { status: "completed", output: result.report ?? "", amountPaid: 0.003, txHash: txHeader };
 }

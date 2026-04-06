@@ -21,6 +21,7 @@ const EVENT_CONFIG: Record<string, { icon: string; color: string; bg: string }> 
   payment_sent:    { icon: "$", color: "text-green-400",   bg: "bg-green-500/10"   },
   budget_check:    { icon: "≡", color: "text-yellow-400",  bg: "bg-yellow-500/10"  },
   task_completed:  { icon: "✓", color: "text-emerald-400", bg: "bg-emerald-500/10" },
+  agent_to_agent:  { icon: "⇄", color: "text-pink-400",    bg: "bg-pink-500/10"    },
 };
 
 const DEFAULT_CONFIG = { icon: "·", color: "text-[#6b7280]", bg: "bg-[#111827]" };

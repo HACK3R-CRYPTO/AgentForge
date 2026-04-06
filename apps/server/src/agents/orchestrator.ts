@@ -7,6 +7,7 @@ import {
   callSummarizerAgent,
   callAnalystAgent,
 } from "../payments/x402client.js";
+import { scrapeAndSummarize } from "./scraper.js";
 
 // Lazy init so dotenv has time to load before the constructor reads env vars
 let _anthropic: Anthropic | null = null;
@@ -75,6 +76,18 @@ const TOOLS: Anthropic.Tool[] = [
       properties: {},
     },
   },
+  {
+    name: "scrape_and_summarize",
+    description:
+      "Agent-to-agent operation: hire the Scraper ($0.001 x402) which then autonomously hires the Summarizer ($0.002 MPP) — demonstrating a true multi-hop agent economy on Stellar. Returns pre-summarized content. Use this when you need both scraping and summarization of the same URL.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        url: { type: "string", description: "URL to scrape and summarize" },
+      },
+      required: ["url"],
+    },
+  },
 ];
 
 // Mock mode — runs without real Anthropic credits for demo/frontend dev
@@ -113,8 +126,11 @@ Your job: decompose the user's task into subtasks, discover available agents fro
 
 Available agent types:
 - scraper: Fetches web content ($0.001/call via x402)
-- summarizer: Summarizes text ($0.002/summary via MPP)
+- summarizer: Summarizes text ($0.002/summary via MPP Charge)
 - analyst: Produces analysis reports ($0.003/report via x402)
+
+Agent-to-agent tool:
+- scrape_and_summarize: The Scraper autonomously hires the Summarizer — true multi-hop agent economy. Use this for $0.003 total when you need both scraping and summarization of a URL. The Scraper pays the Summarizer directly via MPP without going through the Orchestrator.
 
 Budget for this task: $${task.budget}
 
@@ -240,6 +256,35 @@ Decompose this task, discover agents, check budget, and hire them to complete th
             remaining,
             currency: "USDC",
           });
+          break;
+        }
+        case "scrape_and_summarize": {
+          const input = toolUse.input as { url: string };
+          emitActivity({
+            type: "agent_hired",
+            taskId: task.id,
+            message: `Agent-to-agent: Scraper → Summarizer chain for ${input.url}`,
+            timestamp: Date.now(),
+          });
+
+          try {
+            // Scraper pays x402 to itself, then Scraper pays MPP to Summarizer
+            const a2aResult = await scrapeAndSummarize(input.url, task.id);
+
+            await recordSpend(0.003); // scraper $0.001 + summarizer $0.002
+            incrementCallCount("scraper");
+            incrementCallCount("summarizer");
+
+            result = JSON.stringify({
+              status: "completed",
+              url: input.url,
+              summary: a2aResult.summary,
+              a2a_tx: a2aResult.a2aTxHash,
+              note: "Scraper autonomously hired Summarizer via MPP — two Stellar payments, zero orchestrator involvement",
+            });
+          } catch (err) {
+            result = JSON.stringify({ status: "error", error: String(err) });
+          }
           break;
         }
         default:

@@ -6,8 +6,7 @@ import { charge } from "@stellar/mpp/charge/server";
 import { Mppx, toNodeListener } from "mppx/server";
 import type { Request as ExpressReq, Response as ExpressRes, NextFunction } from "express";
 
-// 0.002 USDC per summarizer call (display units — toBaseUnits converts internally)
-const MPP_AMOUNT = "0.002";
+const MPP_AMOUNT = "0.002"; // 0.002 USDC per summarizer call (display units)
 
 let _server: ReturnType<typeof Mppx.create> | null = null;
 
@@ -16,21 +15,24 @@ function getMppServer() {
 
   const recipient = process.env.SUMMARIZER_PUBLIC_KEY;
   const currency = process.env.USDC_CONTRACT_ID;
+
   if (!recipient || !currency) {
-    console.warn("[MPP] SUMMARIZER_PUBLIC_KEY or USDC_CONTRACT_ID not set");
+    throw new Error(
+      "MPP guard: SUMMARIZER_PUBLIC_KEY and USDC_CONTRACT_ID must be set. " +
+      "Check your .env file."
+    );
   }
 
   _server = Mppx.create({
     methods: [
       charge({
-        recipient: recipient || "",
-        currency: currency || "",
+        recipient,
+        currency,
         network: "stellar:testnet",
         rpcUrl: process.env.STELLAR_RPC_URL || "https://soroban-testnet.stellar.org",
       }),
     ],
     realm: "agentforge-summarizer",
-    // Used for HMAC-bound challenge IDs (not the payment key)
     secretKey: process.env.MPP_SECRET_KEY || process.env.SUMMARIZER_SECRET_KEY || "agentforge-mpp-dev",
   });
 
@@ -38,36 +40,37 @@ function getMppServer() {
 }
 
 /**
- * Express middleware that enforces an MPP Charge payment.
- *
- * On 402: sends the WWW-Authenticate challenge and ends the response.
- * On success: sets the Payment-Receipt header and calls next().
+ * Express middleware that enforces an MPP Charge payment before the summarizer.
+ * Issues a 402 WWW-Authenticate challenge; on success sets the Payment-Receipt header.
  */
 export async function mppGuard(req: ExpressReq, res: ExpressRes, next: NextFunction) {
-  if (!process.env.SUMMARIZER_PUBLIC_KEY || !process.env.USDC_CONTRACT_ID) {
-    // Skip MPP if not configured (dev mode)
-    return next();
-  }
-
   try {
     const server = getMppServer();
     const handler = server.stellar.charge({ amount: MPP_AMOUNT });
 
-    // toNodeListener bridges Fetch API ↔ Node.js HTTP.
-    // Express req/res extend IncomingMessage/ServerResponse — compatible.
     const result = await toNodeListener(handler)(req as any, res as any);
 
     if (result.status === 402) {
-      // Challenge already written to response by toNodeListener
+      // Challenge written to response by toNodeListener — stop here
       return;
     }
 
-    // Payment verified — toNodeListener has set the Payment-Receipt header.
-    // Continue to the route handler to write the body.
+    // Payment verified — Payment-Receipt header already set, continue to handler
     next();
   } catch (err) {
-    console.error("[MPP] Guard error:", err);
-    // In case of unexpected error, let the request through so the demo still works
-    next();
+    const message = String(err);
+    console.error("[MPP] Guard error:", message);
+
+    // Surface config errors so they're not silent
+    if (message.includes("must be set") || message.includes("not set")) {
+      res.status(503).json({
+        error: "MPP payment guard misconfigured",
+        detail: message,
+      });
+      return;
+    }
+
+    // Unexpected runtime error — surface it rather than silently passing through
+    res.status(500).json({ error: "MPP payment verification failed", detail: message });
   }
 }
