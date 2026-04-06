@@ -19,13 +19,21 @@ export interface AgentService {
 
 // In-memory registry — authoritative source for call counts and initial data.
 // On-chain contract is the source of truth for registration and reputation.
+
+// Resolve the public base URL: Railway injects RAILWAY_PUBLIC_DOMAIN; fall back to SERVER_URL or localhost.
+function getServerBaseUrl(): string {
+  if (process.env.SERVER_URL) return process.env.SERVER_URL.replace(/\/$/, "");
+  if (process.env.RAILWAY_PUBLIC_DOMAIN) return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+  return `http://localhost:${process.env.PORT || 4021}`;
+}
+
 const services: AgentService[] = [
   {
     id: "scraper-001",
     agentId: "orchestrator",
     name: "Web Scraper Agent",
     description: "Fetches and extracts content from web pages",
-    endpoint: `http://localhost:${process.env.PORT || 4021}/api/agents/scraper`,
+    endpoint: `${getServerBaseUrl()}/api/agents/scraper`,
     price: 0.001,
     paymentType: "x402",
     category: "scraper",
@@ -37,7 +45,7 @@ const services: AgentService[] = [
     agentId: "orchestrator",
     name: "Text Summarizer Agent",
     description: "Summarizes text content using AI",
-    endpoint: `http://localhost:${process.env.PORT || 4021}/api/agents/summarizer`,
+    endpoint: `${getServerBaseUrl()}/api/agents/summarizer`,
     price: 0.002,
     paymentType: "mpp",
     category: "summarizer",
@@ -49,7 +57,7 @@ const services: AgentService[] = [
     agentId: "orchestrator",
     name: "Data Analyst Agent",
     description: "Analyzes data and produces structured reports",
-    endpoint: `http://localhost:${process.env.PORT || 4021}/api/agents/analyst`,
+    endpoint: `${getServerBaseUrl()}/api/agents/analyst`,
     price: 0.003,
     paymentType: "x402",
     category: "analyst",
