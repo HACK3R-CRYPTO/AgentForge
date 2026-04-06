@@ -69,6 +69,11 @@ export default function BudgetWidget() {
               />
             </div>
             <p className="text-[10px] text-[#4b5563] mt-1">{pct.toFixed(1)}% used today</p>
+            {pct > 80 && (
+              <p className="text-[10px] text-red-400 mt-1 font-medium">
+                ⚠ Over 80% of daily budget consumed — spending policy will block new tasks soon
+              </p>
+            )}
           </div>
 
           {/* Stats */}

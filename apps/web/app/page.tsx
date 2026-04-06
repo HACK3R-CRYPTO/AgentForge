@@ -72,7 +72,8 @@ export default function Home() {
               <span className="text-purple-400 font-medium">Soroban ServiceRegistry</span> →
               checks your <span className="text-yellow-400 font-medium">SpendingPolicy</span> →
               hires specialists and pays them via{" "}
-              <span className="text-indigo-400 font-medium">x402 micropayments</span> on Stellar testnet.
+              <span className="text-indigo-400 font-medium">x402</span> and{" "}
+              <span className="text-cyan-400 font-medium">MPP Charge</span> micropayments on Stellar testnet.
               Fully autonomous.
             </p>
           </div>

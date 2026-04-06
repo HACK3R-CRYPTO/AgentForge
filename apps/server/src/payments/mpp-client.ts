@@ -57,7 +57,7 @@ export async function callSummarizerViaMpp(
 
   // Extract the transaction hash from the Payment-Receipt header if present
   const receipt = response.headers.get("Payment-Receipt");
-  let txHash = `mpp-${Date.now()}`;
+  let txHash = `mock-${Date.now()}`;
   if (receipt) {
     try {
       const parsed = JSON.parse(atob(receipt));

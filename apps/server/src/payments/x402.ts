@@ -11,7 +11,6 @@ const USDC =
 
 export function createX402Middleware() {
   const scraperPayTo = process.env.SCRAPER_PUBLIC_KEY!;
-  const summarizerPayTo = process.env.SUMMARIZER_PUBLIC_KEY!;
   const analystPayTo = process.env.ANALYST_PUBLIC_KEY!;
 
   const facilitatorClient = new HTTPFacilitatorClient({
@@ -34,17 +33,7 @@ export function createX402Middleware() {
         ],
         description: "Web scraping service — $0.001/call via x402",
       },
-      "POST /api/agents/summarizer": {
-        accepts: [
-          {
-            scheme: "exact",
-            price: { asset: USDC, amount: "20000" },   // 0.002 USDC
-            network: "stellar:testnet",
-            payTo: summarizerPayTo,
-          },
-        ],
-        description: "Text summarizer — $0.002/summary via x402",
-      },
+      // NOTE: summarizer uses MPP Charge (not x402) — guarded by mppGuard middleware in agents.ts
       "POST /api/agents/analyst": {
         accepts: [
           {

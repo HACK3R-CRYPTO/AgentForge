@@ -168,11 +168,15 @@ export async function initRegistry(): Promise<void> {
 
   console.log("[Registry] Registering agents on Soroban ServiceRegistry…");
 
+  // Check which categories are already registered on-chain — avoid duplicate entries
+  const existing = await getAllServices();
+  const registeredCategories = new Set(existing.map((s) => s.category));
+
   const entries: Array<{ svc: AgentService; paymentTypeNum: number }> = [
     { svc: services[0], paymentTypeNum: 0 }, // scraper → x402
-    { svc: services[1], paymentTypeNum: 0 }, // summarizer → x402
+    { svc: services[1], paymentTypeNum: 1 }, // summarizer → MPP (1)
     { svc: services[2], paymentTypeNum: 0 }, // analyst → x402
-  ];
+  ].filter(({ svc }) => !registeredCategories.has(svc.category));
 
   for (let i = 0; i < entries.length; i++) {
     const { svc, paymentTypeNum } = entries[i];
@@ -212,7 +216,9 @@ export async function initRegistry(): Promise<void> {
 export async function queryServiceRegistry(
   category: string
 ): Promise<AgentService[]> {
-  return services.filter((s) => s.category === category);
+  // Use getAllServices so the orchestrator's discover_agents tool sees on-chain data
+  const all = await getAllServices();
+  return all.filter((s) => s.category === category);
 }
 
 export async function getAllServices(): Promise<AgentService[]> {

@@ -52,8 +52,12 @@ export default function TaskSubmitForm({ onTaskCreated }: { onTaskCreated: (id: 
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="e.g., Research and summarize the top Stellar DeFi protocols..."
             rows={4}
+            maxLength={1000}
             className="w-full bg-[#111827] border border-[#1f2937] focus:border-indigo-500/60 rounded-lg px-3 py-2.5 text-sm text-white placeholder-[#374151] resize-none outline-none transition-colors"
           />
+          {prompt.length > 800 && (
+            <p className="text-[10px] text-yellow-500 mt-1 text-right">{prompt.length}/1000</p>
+          )}
           <div className="flex flex-wrap gap-1.5 mt-2">
             {EXAMPLES.map((ex) => (
               <button

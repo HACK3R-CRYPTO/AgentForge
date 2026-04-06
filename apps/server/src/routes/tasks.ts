@@ -26,16 +26,25 @@ const tasks = new Map<
 taskRoutes.post("/", async (req, res) => {
   const { prompt, budget = 0.05 } = req.body as TaskRequest;
 
-  if (!prompt) {
+  if (!prompt || typeof prompt !== "string") {
     res.status(400).json({ error: "prompt is required" });
+    return;
+  }
+  if (prompt.trim().length > 1000) {
+    res.status(400).json({ error: "prompt must be 1000 characters or fewer" });
+    return;
+  }
+  const parsedBudget = typeof budget === "number" ? budget : parseFloat(budget);
+  if (isNaN(parsedBudget) || parsedBudget < 0.001 || parsedBudget > 0.5) {
+    res.status(400).json({ error: "budget must be between $0.001 and $0.50 USDC" });
     return;
   }
 
   const taskId = `task-${Date.now()}`;
   const task = {
     id: taskId,
-    prompt,
-    budget,
+    prompt: prompt.trim(),
+    budget: parsedBudget,
     status: "running" as TaskStatus,
     createdAt: Date.now(),
   };
