@@ -60,12 +60,12 @@ const services: AgentService[] = [
 export async function queryServiceRegistry(
   category: string
 ): Promise<AgentService[]> {
-  // TODO: Replace with actual Soroban contract call
-  // const contract = new StellarSdk.Contract(process.env.SERVICE_REGISTRY_CONTRACT_ID!);
-  // const tx = contract.call("query_services", StellarSdk.xdr.ScVal.scvString(category));
-  // const result = await sorobanRpc.simulateTransaction(tx);
-
   return services.filter((s) => s.category === category);
+}
+
+export function incrementCallCount(category: string): void {
+  const svc = services.find((s) => s.category === category);
+  if (svc) svc.totalCalls++;
 }
 
 export async function registerService(
