@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4021";
 
@@ -103,10 +104,14 @@ export default function TaskResult({ taskId }: { taskId: string }) {
             prose-p:text-[#9ca3af] prose-p:text-xs prose-p:leading-relaxed prose-p:my-1
             prose-strong:text-white prose-strong:font-semibold
             prose-li:text-[#9ca3af] prose-li:text-xs
-            prose-table:text-xs prose-td:text-[#9ca3af] prose-th:text-white prose-th:font-medium
+            prose-table:text-xs prose-table:w-full
+            prose-thead:border-b prose-thead:border-[#374151]
+            prose-th:text-white prose-th:font-semibold prose-th:py-2 prose-th:px-3 prose-th:text-left prose-th:bg-[#0d1117]
+            prose-td:text-[#9ca3af] prose-td:py-2 prose-td:px-3 prose-td:border-b prose-td:border-[#1f2937]
+            prose-tr:hover:bg-[#1f2937]/50
             prose-code:text-indigo-300 prose-code:text-[10px] prose-code:bg-[#1f2937] prose-code:px-1 prose-code:rounded
             prose-blockquote:border-indigo-500 prose-blockquote:text-[#6b7280]">
-            <ReactMarkdown>{task.result}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{task.result}</ReactMarkdown>
           </div>
         </div>
       )}
