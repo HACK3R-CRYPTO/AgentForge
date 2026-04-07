@@ -41,6 +41,21 @@ const AGENT_DEFS: AgentTask[] = [
   { id: "analyst",    name: "Data Analyst",   protocol: "x402", protocolColor: "text-indigo-400", cost: "$0.003", events: [], status: "pending" },
 ];
 
+// Derive the actor label for an event
+function getActor(ev: ActivityEvent, agentId?: string): { label: string; color: string } | null {
+  const src = ev.agent?.toLowerCase() ?? "";
+  if (ev.type === "agent_to_agent") return { label: "Scraper → Summarizer", color: "text-pink-400" };
+  if (agentId === "summarizer" && (src.includes("scraper") || ev.type === "agent_hired"))
+    return { label: "Web Scraper (A2A)", color: "text-pink-400" };
+  if (agentId === "scraper"   && (ev.type === "agent_hired" || ev.type === "agent_discovery"))
+    return { label: "Orchestrator", color: "text-purple-400" };
+  if (agentId === "analyst"   && (ev.type === "agent_hired" || ev.type === "agent_discovery"))
+    return { label: "Orchestrator", color: "text-purple-400" };
+  if (!agentId && (ev.type === "task_started" || ev.type === "budget_check" || ev.type === "agent_discovery"))
+    return { label: "Orchestrator", color: "text-purple-400" };
+  return null;
+}
+
 const EVENT_ICON: Record<string, string> = {
   task_started:    "▶",
   agent_discovery: "◎",
@@ -232,16 +247,22 @@ export default function AgentActivityFeed() {
                   {globalEvs.map((ev: ActivityEvent, i: number) => {
                     const color = EVENT_COLOR[ev.type] ?? "text-neutral-500";
                     const icon  = EVENT_ICON[ev.type]  ?? "·";
+                    const actor = getActor(ev);
                     return (
                       <motion.div
                         key={`${group.taskId}-global-${i}`}
                         initial={{ opacity: 0, y: 4 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="flex items-center gap-2 px-2 py-1 rounded-lg"
+                        className="flex items-start gap-2 px-2 py-1 rounded-lg"
                       >
-                        <span className={`font-bold text-xs w-4 text-center ${color}`}>{icon}</span>
-                        <span className={`text-xs ${color}`}>{ev.message}</span>
-                        <span className="text-[10px] text-neutral-500 ml-auto font-mono">
+                        <span className={`font-bold text-xs w-4 text-center mt-0.5 ${color}`}>{icon}</span>
+                        <span className="flex-1 min-w-0">
+                          {actor && (
+                            <span className={`text-[9px] font-mono font-semibold mr-1.5 ${actor.color}`}>[{actor.label}]</span>
+                          )}
+                          <span className={`text-xs ${color}`}>{ev.message}</span>
+                        </span>
+                        <span className="text-[10px] text-neutral-500 font-mono whitespace-nowrap">
                           {new Date(ev.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                         </span>
                       </motion.div>
@@ -298,6 +319,7 @@ export default function AgentActivityFeed() {
                                     const color = EVENT_COLOR[ev.type] ?? "text-neutral-500";
                                     const icon  = EVENT_ICON[ev.type]  ?? "·";
                                     const cost  = ev.cost ?? ev.amount;
+                                    const actor = getActor(ev, task.id);
                                     return (
                                       <motion.div
                                         key={i}
@@ -308,6 +330,9 @@ export default function AgentActivityFeed() {
                                       >
                                         <span className={`font-bold text-[11px] w-3 text-center mt-0.5 ${color}`}>{icon}</span>
                                         <span className={`text-xs flex-1 leading-relaxed ${color}`}>
+                                          {actor && (
+                                            <span className={`text-[9px] font-mono font-semibold mr-1.5 ${actor.color}`}>[{actor.label}]</span>
+                                          )}
                                           {ev.message}
                                           {cost != null && (
                                             <span className="text-green-400 ml-1.5 font-semibold font-mono">${cost.toFixed(4)}</span>
