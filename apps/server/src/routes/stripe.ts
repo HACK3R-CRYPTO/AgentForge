@@ -3,14 +3,15 @@
 // This is the bridge: traditional payments → Stellar micropayment economy
 
 import { Router } from "express";
-import Stripe from "stripe";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const StripeLib = require("stripe");
 
 export const stripeRoutes = Router();
 
-function getStripe(): Stripe {
+function getStripe(): any {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error("STRIPE_SECRET_KEY not set");
-  return new Stripe(key);
+  return new StripeLib(key);
 }
 
 const TASK_PRICE_CENTS = 10; // $0.10 per task
