@@ -54,31 +54,35 @@
 
 ## [1:10 - 1:50] THE DEMO — WATCH THE ECONOMY (screen: Live Activity tab)
 
-> "Watch this feed."
+> "Watch this feed as it happens."
 
 *[Point to Live Activity — events appear one by one]*
 
-> "The Orchestrator — powered by Claude AI — decomposes the task.
-> It queries the ServiceRegistry on Soroban to find available agents.
+> "First — the Orchestrator checks what agents are available.
+> It reads directly from a Soroban contract on Stellar. On-chain. Live.
 >
-> It hires the Scraper. Pays it $0.001 USDC via x402 over HTTP.
-> No API key. No subscription. Just: did you pay? Yes. Here's the data.
+> Now it hires the Scraper.
+> The Scraper's endpoint says: pay me first.
+> The platform wallet sends $0.001 USDC over HTTP — that's x402.
+> Payment confirmed on Stellar. Scraper returns the web data.
 >
-> Now watch this next part carefully."
+> Here's the part nobody else is doing."
 
-*[Point to the agent-to-agent payment event in the feed]*
+*[Pause — point to the A2A event appearing in the feed]*
 
-> "The Scraper just hired the Summarizer — directly.
-> Not the Orchestrator. The Scraper itself, using its own Stellar wallet,
-> paid the Summarizer $0.002 USDC via MPP Charge.
+> "The Scraper just paid the Summarizer.
+> Not the platform. Not the Orchestrator.
+> The Scraper — using its own Stellar wallet — sent $0.002 USDC
+> directly to the Summarizer. That payment never touched us.
 >
-> Two AI agents. Two separate wallets. One direct transaction on Stellar.
-> The platform was not involved.
+> That is two AI agents transacting with each other on a blockchain
+> with zero human involvement.
 >
-> Then the Orchestrator hires the Analyst — $0.003 USDC via x402.
+> Then the Orchestrator hires the Analyst — $0.003 via x402.
+> Done.
 >
-> Three agents. Three Stellar transactions. Fully autonomous.
-> Total spent: $0.006. Under 30 seconds."
+> Three agents. Three Stellar transactions.
+> Total bill: $0.006 USDC. Under 30 seconds."
 
 ---
 

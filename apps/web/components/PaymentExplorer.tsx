@@ -47,7 +47,7 @@ export default function PaymentExplorer() {
 
   return (
     <div className="card flex flex-col" style={{ height: 520 }}>
-      <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-[#1f2937]">
+      <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-neutral-800">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-md bg-green-500/15 flex items-center justify-center text-green-400 text-xs">💸</div>
           <h2 className="font-semibold text-white text-sm">Payment Explorer</h2>
@@ -62,7 +62,7 @@ export default function PaymentExplorer() {
             </div>
           )}
         </div>
-        <span className="text-xs text-[#4b5563]">Stellar Testnet</span>
+        <span className="text-xs text-neutral-500">Stellar Testnet</span>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-3">
@@ -71,10 +71,10 @@ export default function PaymentExplorer() {
             {[1,2,3].map((i) => <div key={i} className="skeleton h-16 rounded-lg" />)}
           </div>
         ) : payments.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-3 text-[#374151]">
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-neutral-600">
             <div className="text-3xl">💸</div>
             <p className="text-sm">No payments yet</p>
-            <p className="text-xs">Submit a task to generate Stellar transactions</p>
+            <p className="text-xs text-neutral-500">Submit a task to generate Stellar transactions</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -84,17 +84,16 @@ export default function PaymentExplorer() {
                 <div
                   key={p.id}
                   onClick={() => setSelected(selected === p.id ? null : p.id)}
-                  className="bg-[#111827] hover:bg-[#1f2937] border border-[#1f2937] hover:border-[#374151] rounded-lg p-3 cursor-pointer transition-all"
+                  className="bg-neutral-800 hover:bg-neutral-800/70 border border-neutral-800 hover:border-neutral-700 rounded-lg p-3 cursor-pointer transition-all"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0 inline-block" />
-                      {/* Protocol badge */}
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono font-medium border shrink-0 ${proto.bg} ${proto.color} ${proto.border}`}>
                         {proto.label}
                       </span>
                       <span className="text-white text-xs font-medium truncate">{p.fromLabel ?? "—"}</span>
-                      <span className="text-[#374151] text-xs shrink-0">→</span>
+                      <span className="text-neutral-600 text-xs shrink-0">→</span>
                       <span className="text-indigo-300 text-xs font-medium truncate">{p.toLabel ?? "—"}</span>
                     </div>
                     <span className="text-green-400 font-mono text-sm font-semibold shrink-0 ml-2">
@@ -103,34 +102,34 @@ export default function PaymentExplorer() {
                   </div>
 
                   {selected === p.id && (
-                    <div className="mt-2 pt-2 border-t border-[#1f2937] space-y-1 slide-in">
+                    <div className="mt-2 pt-2 border-t border-neutral-800 space-y-1 slide-in">
                       <div className="flex items-center justify-between text-[10px]">
-                        <span className="text-[#4b5563]">Protocol</span>
+                        <span className="text-neutral-500">Protocol</span>
                         <span className={`${proto.color} font-mono font-medium`}>{proto.label} — {p.protocol === "mpp" ? "MPP Charge (draft-stellar-charge-00)" : "x402 Pay-per-Request"}</span>
                       </div>
                       <div className="flex items-center justify-between text-[10px]">
-                        <span className="text-[#4b5563]">From</span>
-                        <span className="text-[#9ca3af]">
+                        <span className="text-neutral-500">From</span>
+                        <span className="text-neutral-400">
                           <span className="font-medium text-white">{p.fromLabel}</span>
-                          {p.from && <span className="text-[#4b5563] ml-1 font-mono">({p.from.slice(0,8)}…)</span>}
+                          {p.from && <span className="text-neutral-500 ml-1 font-mono">({p.from.slice(0,8)}…)</span>}
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-[10px]">
-                        <span className="text-[#4b5563]">To</span>
-                        <span className="text-[#9ca3af]">
+                        <span className="text-neutral-500">To</span>
+                        <span className="text-neutral-400">
                           <span className="font-medium text-indigo-300">{p.toLabel}</span>
-                          {p.to && <span className="text-[#4b5563] ml-1 font-mono">({p.to.slice(0,8)}…)</span>}
+                          {p.to && <span className="text-neutral-500 ml-1 font-mono">({p.to.slice(0,8)}…)</span>}
                         </span>
                       </div>
                       {p.amount && (
                         <div className="flex items-center justify-between text-[10px]">
-                          <span className="text-[#4b5563]">Amount</span>
+                          <span className="text-neutral-500">Amount</span>
                           <span className="text-green-400 font-mono font-semibold">{p.amount} {p.asset}</span>
                         </div>
                       )}
                       <div className="flex items-center justify-between text-[10px]">
-                        <span className="text-[#4b5563]">Time</span>
-                        <span className="text-[#9ca3af]">{new Date(p.timestamp).toLocaleString()}</span>
+                        <span className="text-neutral-500">Time</span>
+                        <span className="text-neutral-400">{new Date(p.timestamp).toLocaleString()}</span>
                       </div>
                       <a
                         href={`https://stellar.expert/explorer/testnet/tx/${p.txHash}`}

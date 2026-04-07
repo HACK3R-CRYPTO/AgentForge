@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import { taskRoutes } from "./routes/tasks.js";
 import { agentRoutes } from "./routes/agents.js";
 import { paymentRoutes } from "./routes/payments.js";
+import { stripeRoutes } from "./routes/stripe.js";
 import { scrapeUrl } from "./agents/scraper.js";
 import { summarizeText } from "./agents/summarizer.js";
 import { analyzeData } from "./agents/analyst.js";
@@ -103,6 +104,7 @@ app.use(createX402Middleware());
 app.use("/api/agents", agentRoutes);
 
 app.use("/api/payments", paymentRoutes);
+app.use("/api/stripe", stripeRoutes);
 
 setupActivityFeed(wss);
 

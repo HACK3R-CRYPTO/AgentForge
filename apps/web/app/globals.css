@@ -2,20 +2,16 @@
 @plugin "@tailwindcss/typography";
 
 :root {
-  --bg-base: #060912;
-  --bg-card: #0d1117;
-  --bg-card-hover: #111827;
-  --border: #1f2937;
-  --border-bright: #374151;
+  --bg-base: #0a0a0a;
+  --bg-card: #171717;
+  --bg-card-hover: #262626;
+  --border: #262626;
+  --border-bright: #404040;
   --accent: #6366f1;
-  --accent-glow: rgba(99, 102, 241, 0.15);
-  --green: #10b981;
-  --green-glow: rgba(16, 185, 129, 0.15);
-  --yellow: #f59e0b;
-  --red: #ef4444;
-  --text-primary: #f9fafb;
-  --text-secondary: #9ca3af;
-  --text-muted: #4b5563;
+  --green: #4ade80;
+  --text-primary: #fafafa;
+  --text-secondary: #a3a3a3;
+  --text-muted: #737373;
 }
 
 * { box-sizing: border-box; }
@@ -30,7 +26,7 @@ body {
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: #404040; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #6366f1; }
 
 @keyframes pulse-dot {
@@ -50,7 +46,7 @@ body {
   100% { background-position:  200% 0; }
 }
 .skeleton {
-  background: linear-gradient(90deg, #111827 25%, #1f2937 50%, #111827 75%);
+  background: linear-gradient(90deg, #171717 25%, #262626 50%, #171717 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -66,19 +62,6 @@ body {
   margin-left: 2px;
 }
 
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.fade-up { animation: fadeUp 0.4s ease forwards; }
-
-.grid-bg {
-  background-image:
-    linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
-  background-size: 40px 40px;
-}
-
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -87,5 +70,5 @@ body {
 }
 .card:hover { border-color: var(--border-bright); }
 
-.glow-indigo { box-shadow: 0 0 24px rgba(99,102,241,0.18); }
-.glow-green  { box-shadow: 0 0 24px rgba(16,185,129,0.15); }
+.glow-indigo { border-color: rgba(99,102,241,0.4); }
+.glow-green  { border-color: rgba(74,222,128,0.35); }
