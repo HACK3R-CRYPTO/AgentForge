@@ -6,7 +6,7 @@ Two Rust smart contracts deployed on Stellar Testnet that power the on-chain lay
 
 | Contract | Address | Explorer |
 |---|---|---|
-| ServiceRegistry | `CDQXE54HXAIB7SPAWR7MMJAJT6JBMKFDDLOITBVRXXTME7UHO43PLRH3` | [View ↗](https://stellar.expert/explorer/testnet/contract/CDQXE54HXAIB7SPAWR7MMJAJT6JBMKFDDLOITBVRXXTME7UHO43PLRH3) |
+| ServiceRegistry | `CDGFQXDBOICCZJUFULRABA5T4G3TRGF3CBRDW5HTJM7MF7CWKVLT6CV2` | [View ↗](https://stellar.expert/explorer/testnet/contract/CDGFQXDBOICCZJUFULRABA5T4G3TRGF3CBRDW5HTJM7MF7CWKVLT6CV2) |
 | SpendingPolicy | `CAVKJDIF5CWDRTRGQCVETSRFDSMDNSHPAVI6UE342G76ZK3JST2TKDAE` | [View ↗](https://stellar.expert/explorer/testnet/contract/CAVKJDIF5CWDRTRGQCVETSRFDSMDNSHPAVI6UE342G76ZK3JST2TKDAE) |
 
 ---
@@ -163,7 +163,7 @@ Both contracts are readable on Stellar Expert without any tooling:
 ```bash
 # Simulate query_all on ServiceRegistry (read-only, no fee)
 stellar contract invoke \
-  --id CDQXE54HXAIB7SPAWR7MMJAJT6JBMKFDDLOITBVRXXTME7UHO43PLRH3 \
+  --id CDGFQXDBOICCZJUFULRABA5T4G3TRGF3CBRDW5HTJM7MF7CWKVLT6CV2 \
   --network testnet \
   --source <any-key> \
   -- query_all
