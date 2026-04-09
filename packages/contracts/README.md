@@ -22,7 +22,8 @@ An on-chain marketplace for agent services. Any developer can register an agent 
 **How AgentForge uses it:**
 - On **server startup**, the Orchestrator calls `register` once per agent — idempotent: queries `query_all` first and skips categories that are already registered
 - When Claude calls the `discover_agents` tool, the backend calls `query_all` via Soroban simulation (read-only, no fee)
-- After each successful hire, the backend fire-and-forgets `record_call` to increment the on-chain counter
+- After each successful hire, the backend fire-and-forgets `record_hire` to emit a permanent hire event on-chain (payer address, amount in stroops, protocol)
+- `record_call` is also called for backward-compatible call count incrementing
 - The backend deduplicates `query_all` results by category (keeping the highest-ID entry) to handle any pre-idempotency duplicates already on-chain
 
 **Interface:**
@@ -45,6 +46,17 @@ fn query_all(env: Env) -> Vec<Service>
 
 // Increment the call counter for a service after each hire
 fn record_call(env: Env, service_id: u64)
+
+// Emit a permanent hire event with full payment details.
+// No auth required — the economic cost of the payment is the spam filter.
+// Emits: ("hire", service_id) -> (payer: Address, amount_stroops: i128, protocol: String)
+fn record_hire(
+    env: Env,
+    service_id: u64,
+    payer: Address,
+    amount_stroops: i128,
+    protocol: String,   // "x402" or "mpp"
+)
 ```
 
 **Service struct:**

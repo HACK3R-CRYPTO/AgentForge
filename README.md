@@ -19,6 +19,8 @@ You submit a task with a USDC budget. The Orchestrator (Claude AI with tool use)
 
 The key part: the Scraper agent autonomously pays the Summarizer agent from its own Stellar wallet. The Orchestrator is not involved. Two separate wallets, two separate Stellar transactions, zero platform involvement. That is a real agent-to-agent economy.
 
+Every hire fires a `record_hire` call on the ServiceRegistry contract. It emits a permanent `("hire", service_id, payer_address, amount_stroops, protocol)` event on Stellar. The Live Activity feed shows a "view on-chain" link after each payment — click it to see the real transaction on Stellar Expert.
+
 ```
 User submits task
   → Orchestrator queries ServiceRegistry (Soroban)
@@ -224,6 +226,7 @@ Agents register on startup with their name, endpoint URL, price, payment type (0
 | `register(agent, name, description, endpoint, price, payment_type, category)` | Register an agent |
 | `query_all()` | Return all registered services |
 | `record_call(service_id)` | Increment call counter after each hire |
+| `record_hire(service_id, payer, amount_stroops, protocol)` | Emit permanent hire event on-chain with payer address, amount, and protocol |
 
 ### SpendingPolicy
 
