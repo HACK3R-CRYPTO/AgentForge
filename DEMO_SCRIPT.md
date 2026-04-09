@@ -1,5 +1,5 @@
 # AgentForge — Demo Video Script
-## 2 minutes 30 seconds | Stellar Hacks: Agents 2026
+## 3 minutes | Stellar Hacks: Agents 2026
 
 ---
 
@@ -45,6 +45,8 @@
 
 > "I set a budget of 5 cents — enforced by a Soroban SpendingPolicy contract on-chain.
 > The agent literally cannot spend more than this. It's in the contract.
+> That number on the left sidebar? It reads directly from the Soroban contract.
+> Same source as the activity log. No approximation.
 >
 > I hit Launch."
 
@@ -61,28 +63,26 @@
 > "First — the Orchestrator checks what agents are available.
 > It reads directly from a Soroban contract on Stellar. On-chain. Live.
 >
-> Now it hires the Scraper.
-> The Scraper's endpoint says: pay me first.
-> The platform wallet sends $0.001 USDC over HTTP — that's x402.
-> Payment confirmed on Stellar. Scraper returns the web data.
+> Now it runs the scrape-and-summarize chain.
+> The Scraper fetches the page, then — without asking the Orchestrator —
+> pays the Summarizer directly from its own wallet via MPP.
 >
-> Here's the part nobody else is doing."
+> Watch this event."
 
-*[Pause — point to the A2A event appearing in the feed]*
+*[Point to the MPP payment event with "view on-chain" link]*
 
-> "The Scraper just paid the Summarizer.
-> Not the platform. Not the Orchestrator.
-> The Scraper — using its own Stellar wallet — sent $0.002 USDC
-> directly to the Summarizer. That payment never touched us.
->
-> That is two AI agents transacting with each other on a blockchain
-> with zero human involvement.
+> "See that link — view on-chain. Click it."
+
+*[Click "view on-chain" — Stellar Expert opens showing the real MPP tx]*
+
+> "That is the real Stellar transaction. Scraper wallet to Summarizer wallet.
+> Not a log. Not a database entry. On Stellar testnet. Permanently.
 >
 > Then the Orchestrator hires the Analyst — $0.003 via x402.
-> Done.
+> That payment also has a view on-chain link. Two different protocols.
+> Both real Stellar transactions.
 >
-> Three agents. Three Stellar transactions.
-> Total bill: $0.006 USDC. Under 30 seconds."
+> Three agents. $0.006 total. Under 30 seconds."
 
 ---
 
@@ -90,27 +90,50 @@
 
 *[Click Payments tab]*
 
-> "These are real Stellar testnet transactions.
+> "Here are every payment from this task.
 > Notice the two protocol badges — x402 in indigo, MPP in cyan.
-> Every payment is a different protocol depending on which agent was hired.
+> Each agent uses a different payment rail.
 >
-> Click any one..."
+> Click the MPP entry."
 
-*[Click an MPP payment to expand it]*
+*[Click the MPP Summarizer payment to expand it]*
 
-> "Scraper wallet paid Summarizer wallet directly. $0.002 USDC. MPP Charge.
-> You can verify this right now on Stellar Expert."
+> "Scraper wallet paid Summarizer wallet directly. $0.002 USDC.
+> MPP Charge — draft-stellar-charge-00, Soroban-native.
+> Click View on Stellar Expert."
 
 *[Click 'View on Stellar Expert' link — show the tx]*
 
+> "Real transaction. Real wallets. Zero platform involvement in this hop."
+
 ---
 
-## [2:10 - 2:20] THE DEMO — SHOW THE REGISTRY (screen: switch to Registry tab)
+## [2:10 - 2:20] THE DEMO — SHOW THE ON-CHAIN HIRE EVENTS (screen: Stellar Expert)
 
-*[Click Registry tab]*
+*[Open Stellar Expert → ServiceRegistry contract → Events tab]*
+*[URL: https://stellar.expert/explorer/testnet/contract/CDGFQXDBOICCZJUFULRABA5T4G3TRGF3CBRDW5HTJM7MF7CWKVLT6CV2]*
+
+> "This is the ServiceRegistry Soroban contract. Click Events.
+>
+> Every hire emits a permanent record: service ID, payer address,
+> amount in stroops, and the protocol — x402 or mpp.
+>
+> This is not a server log. It's not a database entry.
+> This is the contract itself, on Stellar testnet, permanently.
+>
+> That is on-chain proof that these agents hired each other."
+
+---
+
+## [2:25 - 2:35] THE DEMO — SHOW THE REGISTRY (screen: switch to Registry tab)
+
+*[Click Registry tab in the dashboard]*
 
 > "Every agent is registered on a Soroban contract — on-chain.
 > Name, price, payment type, reputation score, call count.
+>
+> These call counts are stored on-chain via record_call.
+> They don't reset when the server restarts.
 >
 > Any developer can deploy an agent, register it here,
 > and start earning USDC micropayments immediately.
@@ -118,7 +141,7 @@
 
 ---
 
-## [2:20 - 2:30] THE BUSINESS MODEL (back to camera)
+## [2:35 - 2:45] THE BUSINESS MODEL (back to camera)
 
 > "How does a real user pay for this? They never touch crypto.
 >
@@ -134,7 +157,7 @@
 
 ---
 
-## [2:30 - 2:45] THE CLOSE (camera)
+## [2:45 - 3:00] THE CLOSE (camera)
 
 > "AgentForge is proof that the agent economy is real.
 >
@@ -149,12 +172,13 @@
 
 ## Recording Tips
 
-- **Total time:** aim for 2:30 - 2:50
+- **Total time:** aim for 2:50 - 3:10
 - **Screen ratio:** 16:9, record at 1080p
 - **Use the live URL:** `https://agent-forge-web-henna.vercel.app` — not localhost
 - **Before recording:** submit one task first so the activity feed already has events in it
-- **Key moment to linger on:** the agent-to-agent event in Live Activity — pause and point at it
-- **Show in order:** Live Activity → Payments tab (expand an MPP one) → Stellar Expert → Registry
+- **Key moment to linger on:** the MPP payment event in Live Activity with the "view on-chain" link — pause, click it, show Stellar Expert
+- **Show in order:** Live Activity (click view on-chain) → Payments tab (expand MPP entry, click Stellar Expert) → Stellar Expert contract Events tab (hire events) → Registry (call counts)
+- **Have the contract Events URL ready:** `https://stellar.expert/explorer/testnet/contract/CDGFQXDBOICCZJUFULRABA5T4G3TRGF3CBRDW5HTJM7MF7CWKVLT6CV2` — open it before recording
 - **Tools:** Loom, OBS, or QuickTime screen record + voice
 - **Upload:** YouTube unlisted or Loom link → paste in DoraHacks submission
 

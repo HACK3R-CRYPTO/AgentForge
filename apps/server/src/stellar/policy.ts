@@ -150,11 +150,14 @@ export async function recordSpend(amount: number): Promise<boolean> {
 
 export async function getSpendingStatus() {
   resetIfNewDay();
+  // Try to read remaining budget from on-chain contract (source of truth)
+  const onChainRemaining = await checkBudget();
+  const onChainSpent = DAILY_LIMIT - onChainRemaining;
   return {
     dailyLimit: DAILY_LIMIT,
     perTxLimit: PER_TX_LIMIT,
-    dailySpent,
-    remaining: DAILY_LIMIT - dailySpent,
+    dailySpent: onChainSpent,
+    remaining: onChainRemaining,
     resetDate: lastResetDay,
   };
 }

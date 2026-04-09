@@ -6,6 +6,7 @@ import {
   callScraperAgent,
   callSummarizerAgent,
   callAnalystAgent,
+  recordPayment,
 } from "../payments/x402client.js";
 import { scrapeAndSummarize } from "./scraper.js";
 
@@ -218,7 +219,10 @@ Decompose this task, discover agents, check budget, and hire them to complete th
               );
             }
 
-            const category = input.service_id.startsWith("scraper") ? "scraper" : input.service_id.startsWith("summarizer") ? "summarizer" : "analyst";
+            const category = input.service_id.startsWith("scraper") || input.service_id === "0" ? "scraper"
+              : input.service_id.startsWith("summarizer") || input.service_id === "1" ? "summarizer"
+              : "analyst";
+            const agentLabel = category === "scraper" ? "Web Scraper" : category === "summarizer" ? "Summarizer" : "Data Analyst";
             const protocol: "x402" | "mpp" = category === "summarizer" ? "mpp" : "x402";
             const amountPaid = agentResult.amountPaid || 0.001;
             await recordSpend(amountPaid);
@@ -233,7 +237,7 @@ Decompose this task, discover agents, check budget, and hire them to complete th
             emitActivity({
               type: "payment_sent",
               taskId: task.id,
-              message: `${protocol.toUpperCase()} payment of $${amountPaid} settled on Stellar testnet for ${input.service_id}`,
+              message: `${protocol.toUpperCase()} payment of $${amountPaid} settled on Stellar testnet for ${agentLabel}`,
               amount: amountPaid,
               txHash: agentResult.txHash,
               timestamp: Date.now(),
@@ -281,9 +285,25 @@ Decompose this task, discover agents, check budget, and hire them to complete th
             // Scraper pays x402 to itself, then Scraper pays MPP to Summarizer
             const a2aResult = await scrapeAndSummarize(input.url, task.id);
 
-            await recordSpend(0.003); // scraper $0.001 + summarizer $0.002
+            await recordSpend(0.002); // summarizer $0.002 via MPP (scraper runs internally)
             incrementCallCount("scraper");
             incrementCallCount("summarizer");
+            recordHireOnChain("scraper", process.env.PLATFORM_PUBLIC_KEY || "", 0.001, "x402");
+            recordHireOnChain("summarizer", process.env.SCRAPER_PUBLIC_KEY || "", 0.002, "mpp");
+
+            // Record in payment ledger so Payments tab shows both entries.
+            // The scraper runs internally in this path (no x402 gate crossed) — label it as internal.
+            // The summarizer is a real MPP payment from the scraper's own wallet.
+            recordPayment("Summarizer", process.env.SUMMARIZER_PUBLIC_KEY || "", "0.0020000", a2aResult.a2aTxHash || `a2a-${Date.now()}`, "mpp", "Scraper", process.env.SCRAPER_PUBLIC_KEY);
+
+            emitActivity({
+              type: "payment_sent",
+              taskId: task.id,
+              message: `MPP payment of $0.002 settled on Stellar testnet for Summarizer (Scraper paid directly — agent-to-agent)`,
+              amount: 0.002,
+              txHash: a2aResult.a2aTxHash,
+              timestamp: Date.now(),
+            });
 
             result = JSON.stringify({
               status: "completed",

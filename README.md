@@ -19,7 +19,9 @@ You submit a task with a USDC budget. The Orchestrator (Claude AI with tool use)
 
 The key part: the Scraper agent autonomously pays the Summarizer agent from its own Stellar wallet. The Orchestrator is not involved. Two separate wallets, two separate Stellar transactions, zero platform involvement. That is a real agent-to-agent economy.
 
-Every hire fires a `record_hire` call on the ServiceRegistry contract. It emits a permanent `("hire", service_id, payer_address, amount_stroops, protocol)` event on Stellar. The Live Activity feed shows a "view on-chain" link after each payment — click it to see the real transaction on Stellar Expert.
+Every hire fires a `record_hire` call on the ServiceRegistry contract. It emits a permanent `("hire", service_id, payer_address, amount_stroops, protocol)` event on Stellar. The Live Activity feed shows a "view on-chain" link after each payment — click it to see the real transaction on Stellar Expert. The Payment Explorer tab shows every payment with its protocol badge (x402 or MPP) and a direct link to the Stellar transaction.
+
+The Spending Policy widget reads the remaining budget directly from the Soroban SpendingPolicy contract. The sidebar and the activity log always show the same number because both read from the same on-chain source. Agent call counts in the Registry tab also persist on-chain — they accumulate across server restarts.
 
 ```
 User submits task
@@ -40,9 +42,9 @@ Most agent projects put one AI on the buying side. AgentForge runs a full econom
 
 Two things no other submission combines:
 
-**Two payment protocols on one platform.** x402 (HTTP-native pay-per-request) handles the Scraper and Analyst. MPP Charge (draft-stellar-charge-00, Soroban-native) handles the Summarizer. Both settle on Stellar testnet with real transaction hashes.
+**Two payment protocols on one platform.** x402 (HTTP-native pay-per-request) handles the Scraper and Analyst. MPP Charge (draft-stellar-charge-00, Soroban-native) handles the Summarizer. Both settle on Stellar testnet with real transaction hashes you can verify.
 
-**On-chain spending guardrails.** The SpendingPolicy Soroban contract enforces daily and per-transaction USDC caps for the Orchestrator wallet. This is not a server-side check. The contract's `__check_auth` pattern enforces it at the protocol level. A runaway Claude instance cannot exceed the budget.
+**On-chain spending guardrails.** The SpendingPolicy Soroban contract enforces daily and per-transaction USDC caps for the Orchestrator wallet. This is not a server-side check. The contract's `__check_auth` pattern enforces it at the protocol level. A runaway Claude instance cannot exceed the budget. The dashboard reads remaining budget directly from the contract — no in-memory approximation.
 
 ---
 
@@ -132,7 +134,7 @@ sequenceDiagram
 
 ### Agent-to-agent payment (Scraper hires Summarizer)
 
-The Orchestrator calls `scrape_and_summarize`. The Scraper fetches the URL via x402, then pays the Summarizer from its own wallet via MPP. The Orchestrator's wallet is not involved in the second payment.
+The Orchestrator calls `scrape_and_summarize`. The Scraper fetches the URL internally, then pays the Summarizer from its own wallet via MPP. The Orchestrator's wallet is not involved in the second payment.
 
 ```
 Orchestrator → Scraper    (x402, $0.001, Platform wallet)
@@ -140,6 +142,8 @@ Orchestrator → Scraper    (x402, $0.001, Platform wallet)
 ```
 
 Two wallets. Two transactions. Zero orchestrator involvement in the second hop.
+
+After each payment, the server fires `record_hire` on the ServiceRegistry contract. This emits a permanent on-chain event with the payer address, amount in stroops, and protocol. The Live Activity feed links directly to the Stellar transaction. The Payment Explorer tab shows all payments for the session with protocol badges and Stellar Expert links.
 
 ---
 
@@ -186,7 +190,7 @@ AgentForge/
 
 ## Getting started
 
-**Prerequisites:** Node.js 20+, Rust with `wasm32-unknown-unknown` target (for contracts only), Stellar CLI.
+**Prerequisites:** Node.js 20+, Rust with `wasm32v1-none` target (for contracts only), Stellar CLI.
 
 ```bash
 git clone https://github.com/HACK3R-CRYPTO/AgentForge.git
@@ -221,6 +225,8 @@ Both contracts are deployed on Stellar Testnet. Source is in `packages/contracts
 
 Agents register on startup with their name, endpoint URL, price, payment type (0 for x402, 1 for MPP), and category. The Orchestrator queries this contract before hiring to discover what is available.
 
+Agent call counts are stored on-chain via `record_call` and persist across server restarts. After every successful hire the server fires `record_hire` to emit a permanent event on-chain.
+
 | Function | Description |
 |---|---|
 | `register(agent, name, description, endpoint, price, payment_type, category)` | Register an agent |
@@ -230,7 +236,7 @@ Agents register on startup with their name, endpoint URL, price, payment type (0
 
 ### SpendingPolicy
 
-Enforces programmable spending limits for the Orchestrator. Prevents runaway AI spending at the contract level, not the server level.
+Enforces programmable spending limits for the Orchestrator. Prevents runaway AI spending at the contract level, not the server level. The dashboard Spending Policy widget reads directly from this contract — the sidebar and activity log always show the same on-chain value.
 
 | Function | Description |
 |---|---|
@@ -251,6 +257,7 @@ Enforces programmable spending limits for the Orchestrator. Prevents runaway AI 
 4. x402 Facilitator  verifies + submits TX to Stellar testnet
 5. Server            200 OK + content
 6. recordPayment()   logs tx hash + amount (protocol: x402)
+7. recordHireOnChain() emits on-chain hire event via ServiceRegistry
 ```
 
 ### MPP Charge (Summarizer)
@@ -262,18 +269,36 @@ Enforces programmable spending limits for the Orchestrator. Prevents runaway AI 
 4. mppGuard          submits Soroban USDC transfer TX to Stellar testnet
 5. Server            200 OK + summary + Payment-Receipt header
 6. recordPayment()   logs tx hash + amount (protocol: mpp)
+7. recordHireOnChain() emits on-chain hire event via ServiceRegistry
 ```
 
 ### Agent-to-agent (Scraper hires Summarizer)
 
 ```
 1. Orchestrator calls scrape_and_summarize tool
-2. Scraper fetches URL (x402, $0.001 from Platform wallet)
+2. Scraper fetches URL internally
 3. Scraper's MPP client (SCRAPER_SECRET_KEY) calls /api/agents/summarizer
 4. mppGuard issues MPP Charge challenge
 5. Scraper wallet pays Summarizer wallet $0.002 directly
-6. Two Stellar TXs settle; Orchestrator wallet uninvolved in steps 3-5
+6. Stellar TX settles; Orchestrator wallet uninvolved in steps 3-5
+7. recordHireOnChain() emits on-chain hire event for Summarizer
+8. Payment Explorer shows the MPP entry with "view on-chain" link
 ```
+
+---
+
+## Dashboard
+
+The dashboard at `/dashboard` shows four panels:
+
+| Tab | What it shows |
+|---|---|
+| Live Activity | Real-time WebSocket feed of all agent events. Payment events include a "view on-chain" link to Stellar Expert. |
+| Payments | All payments for the current server session. Each entry shows the protocol badge (x402 or MPP), amount, payer, recipient, and a Stellar Expert link when a real tx hash is available. |
+| Registry | All agents registered on the ServiceRegistry Soroban contract. Call counts persist on-chain and accumulate across restarts. |
+| Result | The final AI report produced by the Orchestrator. |
+
+The **Spending Policy** widget on the left reads remaining budget directly from the Soroban SpendingPolicy contract — the same value the Orchestrator checks before hiring agents.
 
 ---
 
@@ -301,7 +326,7 @@ Enforces programmable spending limits for the Orchestrator. Prevents runaway AI 
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/api/payments/history` | Payment ledger (x402 + MPP, newest first) |
-| `GET` | `/api/payments/budget` | Soroban SpendingPolicy status |
+| `GET` | `/api/payments/budget` | Soroban SpendingPolicy status (reads on-chain) |
 | `GET` | `/api/payments/balances` | USDC balances for all agent wallets |
 
 ### Debug (rate-limited to 10 per minute, no payment required)

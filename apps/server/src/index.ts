@@ -45,7 +45,12 @@ const app    = express();
 const server = createServer(app);
 const wss    = new WebSocketServer({ server });
 
-app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:3000" }));
+const allowedOrigins = [
+  process.env.FRONTEND_URL || "http://localhost:3000",
+  "http://localhost:3001",
+  "http://localhost:3000",
+];
+app.use(cors({ origin: (origin, cb) => cb(null, !origin || allowedOrigins.includes(origin)) }));
 app.use(express.json());
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────

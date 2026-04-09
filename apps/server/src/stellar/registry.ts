@@ -69,6 +69,21 @@ const services: AgentService[] = [
 // On-chain service IDs assigned after registration (contract auto-increments from 0)
 const onChainIds: Record<string, bigint> = {};
 
+// ─── Soroban TX queue — serializes all writes to avoid sequence number conflicts ──
+
+let _txQueue: Promise<unknown> = Promise.resolve();
+
+function enqueueContractTx(
+  method: string,
+  args: StellarSdk.xdr.ScVal[],
+  secretKey: string
+): Promise<StellarSdk.xdr.ScVal | null> {
+  const result = _txQueue.then(() => submitContractTx(method, args, secretKey));
+  // Keep queue alive even if this TX fails
+  _txQueue = result.catch(() => {});
+  return result;
+}
+
 // ─── Soroban helpers ──────────────────────────────────────────────────────────
 
 async function submitContractTx(
@@ -176,9 +191,18 @@ export async function initRegistry(): Promise<void> {
 
   console.log("[Registry] Registering agents on Soroban ServiceRegistry…");
 
-  // Check which categories are already registered on-chain — avoid duplicate entries
+  // Check which categories are already registered ON-CHAIN (numeric ID = real on-chain entry).
+  // In-memory fallback services have string IDs like "scraper-001" — don't count those.
   const existing = await getAllServices();
-  const registeredCategories = new Set(existing.map((s) => s.category));
+  const onChainServices = existing.filter((s) => /^\d+$/.test(s.id));
+  const registeredCategories = new Set(onChainServices.map((s) => s.category));
+
+  // Populate onChainIds so record_call / record_hire work even when registration is skipped.
+  for (const s of onChainServices) {
+    onChainIds[s.category] = BigInt(s.id);
+  }
+  console.log("[Registry] Already on-chain:", [...registeredCategories].join(", ") || "none");
+  console.log("[Registry] Known on-chain IDs:", JSON.stringify(Object.fromEntries(Object.entries(onChainIds).map(([k, v]) => [k, v.toString()]))));
 
   const entries: Array<{ svc: AgentService; paymentTypeNum: number }> = [
     { svc: services[0], paymentTypeNum: 0 }, // scraper → x402
@@ -192,7 +216,7 @@ export async function initRegistry(): Promise<void> {
       const agentAddress = new StellarSdk.Address(
         StellarSdk.Keypair.fromSecret(secretKey).publicKey()
       );
-      const retval = await submitContractTx(
+      const retval = await enqueueContractTx(
         "register",
         [
           StellarSdk.nativeToScVal(agentAddress, { type: "address" }),
@@ -272,11 +296,12 @@ export function incrementCallCount(category: string): void {
   const svc = services.find((s) => s.category === category);
   if (svc) svc.totalCalls++;
 
-  // Fire-and-forget on-chain record_call (legacy — kept for backward compat)
+  // Fire-and-forget on-chain record_call
+  // Delay 5s so it doesn't collide with record_hire (same orchestrator key = sequence conflict)
   const id = onChainIds[category];
   const secretKey = process.env.ORCHESTRATOR_SECRET_KEY;
   if (id !== undefined && secretKey) {
-    submitContractTx(
+    enqueueContractTx(
       "record_call",
       [StellarSdk.nativeToScVal(id, { type: "u64" })],
       secretKey
@@ -301,16 +326,25 @@ export function recordHireOnChain(
 
   const amountStroops = BigInt(Math.round(amountUsdc * 1e7));
 
-  submitContractTx(
+  enqueueContractTx(
     "record_hire",
     [
       StellarSdk.nativeToScVal(id, { type: "u64" }),
       new StellarSdk.Address(payerAddress).toScVal(),
       StellarSdk.nativeToScVal(amountStroops, { type: "i128" }),
-      StellarSdk.xdr.ScVal.scvString(protocol),
+      StellarSdk.nativeToScVal(protocol, { type: "string" }),
     ],
     secretKey
-  ).catch(() => { /* non-critical */ });
+  ).then((r) => {
+    if (r !== null) {
+      console.log(`[Registry] record_hire confirmed on-chain — category=${category} id=${id} amount=${amountStroops} protocol=${protocol}`);
+    } else {
+      // null = void return (success) OR timeout — check Stellar Expert to verify
+      console.log(`[Registry] record_hire submitted — category=${category} id=${id} (null return = void fn or timeout)`);
+    }
+  }).catch((err) => {
+    console.warn(`[Registry] record_hire FAILED — category=${category}:`, String(err).slice(0, 200));
+  });
 }
 
 export async function registerService(

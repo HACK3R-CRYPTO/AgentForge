@@ -66,12 +66,6 @@ export function recordPayment(
   const resolvedFromKey = fromKey ?? (process.env.PLATFORM_PUBLIC_KEY || process.env.ORCHESTRATOR_PUBLIC_KEY || "");
   const txHash = extractTxHash(rawTxHash);
 
-  // Skip obviously mock hashes — don't pollute ledger with failures
-  if (txHash.startsWith("mock-")) {
-    console.warn(`[Ledger] Skipping mock tx hash for ${toLabel} — payment may have failed`);
-    return;
-  }
-
   // Cap ledger size
   if (paymentLedger.length >= MAX_LEDGER_SIZE) {
     paymentLedger.shift();
@@ -148,9 +142,9 @@ export async function callScraperAgent(url: string): Promise<AgentCallResult> {
     throw new Error(`Scraper failed: ${response.status} ${await response.text()}`);
   }
 
-  const txHeader = response.headers.get("PAYMENT-RESPONSE") || "";
-  if (!txHeader) console.warn("[x402] No PAYMENT-RESPONSE header from scraper");
-  recordPayment("Scraper", process.env.SCRAPER_PUBLIC_KEY || "", "0.0010000", txHeader || `mock-${Date.now()}`, "x402");
+  const txHeader = response.headers.get("PAYMENT-RESPONSE") || response.headers.get("x-payment-response") || "";
+  if (!txHeader) console.warn("[x402] Scraper headers:", [...response.headers.entries()].map(([k]) => k).join(", "));
+  recordPayment("Scraper", process.env.SCRAPER_PUBLIC_KEY || "", "0.0010000", txHeader || `pending-${Date.now()}`, "x402");
 
   const data = (await response.json()) as { content?: string };
   return { status: "completed", output: data.content ?? "", amountPaid: 0.001, txHash: txHeader };
@@ -179,9 +173,9 @@ export async function callAnalystAgent(data: string, question: string): Promise<
     throw new Error(`Analyst failed: ${response.status} ${await response.text()}`);
   }
 
-  const txHeader = response.headers.get("PAYMENT-RESPONSE") || "";
-  if (!txHeader) console.warn("[x402] No PAYMENT-RESPONSE header from analyst");
-  recordPayment("Analyst", process.env.ANALYST_PUBLIC_KEY || "", "0.0030000", txHeader || `mock-${Date.now()}`, "x402");
+  const txHeader = response.headers.get("PAYMENT-RESPONSE") || response.headers.get("x-payment-response") || "";
+  if (!txHeader) console.warn("[x402] Analyst headers:", [...response.headers.entries()].map(([k]) => k).join(", "));
+  recordPayment("Analyst", process.env.ANALYST_PUBLIC_KEY || "", "0.0030000", txHeader || `pending-${Date.now()}`, "x402");
 
   const result = (await response.json()) as { report?: string };
   return { status: "completed", output: result.report ?? "", amountPaid: 0.003, txHash: txHeader };

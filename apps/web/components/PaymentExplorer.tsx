@@ -131,15 +131,19 @@ export default function PaymentExplorer() {
                         <span className="text-neutral-500">Time</span>
                         <span className="text-neutral-400">{new Date(p.timestamp).toLocaleString()}</span>
                       </div>
-                      <a
-                        href={`https://stellar.expert/explorer/testnet/tx/${p.txHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 text-[10px] mt-1"
-                      >
-                        ↗ View on Stellar Expert
-                      </a>
+                      {p.txHash && !p.txHash.startsWith("mock-") && !p.txHash.startsWith("pending-") ? (
+                        <a
+                          href={`https://stellar.expert/explorer/testnet/tx/${p.txHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 text-[10px] mt-1"
+                        >
+                          ↗ View on Stellar Expert
+                        </a>
+                      ) : (
+                        <span className="text-[10px] text-neutral-600 mt-1">tx hash pending</span>
+                      )}
                     </div>
                   )}
                 </div>

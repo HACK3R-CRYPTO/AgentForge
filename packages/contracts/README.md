@@ -20,10 +20,10 @@ An on-chain marketplace for agent services. Any developer can register an agent 
 **Storage:** Each service is stored by auto-incrementing numeric ID with fields: agent address, name, description, endpoint, price (in stroops, 7 decimal places), payment type (0=x402, 1=MPP), category, reputation score, total calls.
 
 **How AgentForge uses it:**
-- On **server startup**, the Orchestrator calls `register` once per agent — idempotent: queries `query_all` first and skips categories that are already registered
+- On **server startup**, the Orchestrator calls `register` once per agent — idempotent: queries `query_all` first and skips categories already registered. On-chain service IDs are loaded from the contract so `record_call` and `record_hire` work correctly across server restarts.
 - When Claude calls the `discover_agents` tool, the backend calls `query_all` via Soroban simulation (read-only, no fee)
-- After each successful hire, the backend fire-and-forgets `record_hire` to emit a permanent hire event on-chain (payer address, amount in stroops, protocol)
-- `record_call` is also called for backward-compatible call count incrementing
+- After each successful hire, the backend fire-and-forgets `record_hire` to emit a permanent hire event on-chain (payer address, amount in stroops, protocol). The Live Activity feed shows a "view on-chain" link directly to the Stellar transaction.
+- `record_call` is called after every hire to increment the agent's call counter on-chain. Counts persist across server restarts and are displayed in the Registry tab.
 - The backend deduplicates `query_all` results by category (keeping the highest-ID entry) to handle any pre-idempotency duplicates already on-chain
 
 **Interface:**
@@ -82,11 +82,14 @@ pub struct Service {
 
 Enforces programmable spending limits for the Orchestrator. Prevents agents from exceeding their daily budget or making oversized individual payments. All limits are enforced on-chain — the contract is the single source of truth.
 
+The dashboard Spending Policy widget reads remaining budget directly from this contract via `get_remaining`. The sidebar and the activity log always show the same on-chain value — there is no in-memory approximation.
+
 **Storage:** `DailyLimit`, `PerTxLimit`, daily spend per caller address, last reset timestamp.
 
 **How AgentForge uses it:**
 - The backend calls `check_and_record` (fire-and-forget) after every successful agent payment
 - When Claude calls the `check_remaining_budget` tool, the backend simulates `get_remaining` with no TX fee
+- The dashboard `GET /api/payments/budget` endpoint reads `get_remaining` from the contract — same source as the activity log budget check
 - Daily limits reset automatically based on on-chain timestamp — no cron job needed
 
 **Interface:**
@@ -127,19 +130,19 @@ fn get_remaining(env: Env, caller: Address) -> i128
 cd packages/contracts
 
 # Install Soroban/Rust toolchain (once)
-rustup target add wasm32-unknown-unknown
+rustup target add wasm32v1-none
 cargo install --locked stellar-cli
 
 # Build ServiceRegistry
 cd service-registry
-cargo build --release --target wasm32-unknown-unknown
+cargo build --release --target wasm32v1-none
 
 # Build SpendingPolicy
 cd ../spending-policy
-cargo build --release --target wasm32-unknown-unknown
+cargo build --release --target wasm32v1-none
 ```
 
-Compiled WASM files output to `target/wasm32-unknown-unknown/release/`.
+Compiled WASM files output to `target/wasm32v1-none/release/`.
 
 ---
 
@@ -148,13 +151,13 @@ Compiled WASM files output to `target/wasm32-unknown-unknown/release/`.
 ```bash
 # Deploy ServiceRegistry
 stellar contract deploy \
-  --wasm service-registry/target/wasm32-unknown-unknown/release/service_registry.wasm \
+  --wasm service-registry/target/wasm32v1-none/release/service_registry.wasm \
   --source <your-keypair-alias> \
   --network testnet
 
 # Deploy SpendingPolicy
 stellar contract deploy \
-  --wasm spending-policy/target/wasm32-unknown-unknown/release/spending_policy.wasm \
+  --wasm spending-policy/target/wasm32v1-none/release/spending_policy.wasm \
   --source <your-keypair-alias> \
   --network testnet
 ```
@@ -188,3 +191,5 @@ stellar contract invoke \
   -- get_remaining \
   --caller <ORCHESTRATOR_PUBLIC_KEY>
 ```
+
+To see hire events emitted by `record_hire`, open the contract on Stellar Expert and click the Events tab. Each event shows the service ID, payer address, amount in stroops, and protocol.
