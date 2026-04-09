@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { queryServiceRegistry, incrementCallCount } from "../stellar/registry.js";
+import { queryServiceRegistry, incrementCallCount, recordHireOnChain } from "../stellar/registry.js";
 import { checkBudget, recordSpend } from "../stellar/policy.js";
 import { emitActivity } from "../websocket/activity.js";
 import {
@@ -218,8 +218,17 @@ Decompose this task, discover agents, check budget, and hire them to complete th
               );
             }
 
-            await recordSpend(agentResult.amountPaid || 0.001);
-            incrementCallCount(input.service_id.startsWith("scraper") ? "scraper" : input.service_id.startsWith("summarizer") ? "summarizer" : "analyst");
+            const category = input.service_id.startsWith("scraper") ? "scraper" : input.service_id.startsWith("summarizer") ? "summarizer" : "analyst";
+            const protocol: "x402" | "mpp" = category === "summarizer" ? "mpp" : "x402";
+            const amountPaid = agentResult.amountPaid || 0.001;
+            await recordSpend(amountPaid);
+            incrementCallCount(category);
+            recordHireOnChain(
+              category,
+              process.env.PLATFORM_PUBLIC_KEY || "",
+              amountPaid,
+              protocol
+            );
 
             emitActivity({
               type: "payment_sent",

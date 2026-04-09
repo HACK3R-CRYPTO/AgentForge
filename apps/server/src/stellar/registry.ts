@@ -272,7 +272,7 @@ export function incrementCallCount(category: string): void {
   const svc = services.find((s) => s.category === category);
   if (svc) svc.totalCalls++;
 
-  // Fire-and-forget on-chain record_call
+  // Fire-and-forget on-chain record_call (legacy — kept for backward compat)
   const id = onChainIds[category];
   const secretKey = process.env.ORCHESTRATOR_SECRET_KEY;
   if (id !== undefined && secretKey) {
@@ -282,6 +282,35 @@ export function incrementCallCount(category: string): void {
       secretKey
     ).catch(() => { /* non-critical */ });
   }
+}
+
+/**
+ * Emit a permanent on-chain hire event via record_hire().
+ * Anchors: service_id, payer address, amount in stroops, protocol ("x402" or "mpp").
+ * Fire-and-forget — never blocks the response.
+ */
+export function recordHireOnChain(
+  category: string,
+  payerAddress: string,
+  amountUsdc: number,
+  protocol: "x402" | "mpp"
+): void {
+  const id = onChainIds[category];
+  const secretKey = process.env.ORCHESTRATOR_SECRET_KEY;
+  if (id === undefined || !secretKey || !payerAddress) return;
+
+  const amountStroops = BigInt(Math.round(amountUsdc * 1e7));
+
+  submitContractTx(
+    "record_hire",
+    [
+      StellarSdk.nativeToScVal(id, { type: "u64" }),
+      new StellarSdk.Address(payerAddress).toScVal(),
+      StellarSdk.nativeToScVal(amountStroops, { type: "i128" }),
+      StellarSdk.xdr.ScVal.scvString(protocol),
+    ],
+    secretKey
+  ).catch(() => { /* non-critical */ });
 }
 
 export async function registerService(

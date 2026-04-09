@@ -8,7 +8,7 @@ Built for [Stellar Hacks: Agents 2026](https://dorahacks.io/hackathon/stellar-ag
 |---|---|
 | **Live backend** | `https://agentforgeserver-production.up.railway.app` |
 | **Live frontend** | `https://agent-forge-web-henna.vercel.app` |
-| **ServiceRegistry** | `CDQXE54HXAIB7SPAWR7MMJAJT6JBMKFDDLOITBVRXXTME7UHO43PLRH3` [(view)](https://stellar.expert/explorer/testnet/contract/CDQXE54HXAIB7SPAWR7MMJAJT6JBMKFDDLOITBVRXXTME7UHO43PLRH3) |
+| **ServiceRegistry** | `CDGFQXDBOICCZJUFULRABA5T4G3TRGF3CBRDW5HTJM7MF7CWKVLT6CV2` [(view)](https://stellar.expert/explorer/testnet/contract/CDGFQXDBOICCZJUFULRABA5T4G3TRGF3CBRDW5HTJM7MF7CWKVLT6CV2) |
 | **SpendingPolicy** | `CAVKJDIF5CWDRTRGQCVETSRFDSMDNSHPAVI6UE342G76ZK3JST2TKDAE` [(view)](https://stellar.expert/explorer/testnet/contract/CAVKJDIF5CWDRTRGQCVETSRFDSMDNSHPAVI6UE342G76ZK3JST2TKDAE) |
 
 ---

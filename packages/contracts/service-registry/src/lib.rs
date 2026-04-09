@@ -169,6 +169,34 @@ impl ServiceRegistryContract {
         env.events()
             .publish((symbol_short!("call"),), service_id);
     }
+
+    /// Record a hire event with full payment details.
+    /// Emits ("hire", service_id, payer, amount_stroops, protocol) on-chain.
+    /// No auth required — the economic cost of the payment is the spam filter.
+    pub fn record_hire(
+        env: Env,
+        service_id: u64,
+        payer: Address,
+        amount_stroops: i128,
+        protocol: String, // "x402" or "mpp"
+    ) {
+        let mut service: Service = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Service(service_id))
+            .expect("service not found");
+
+        service.total_calls += 1;
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::Service(service_id), &service);
+
+        env.events().publish(
+            (symbol_short!("hire"), service_id),
+            (payer, amount_stroops, protocol),
+        );
+    }
 }
 
 #[cfg(test)]
