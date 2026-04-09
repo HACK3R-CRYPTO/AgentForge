@@ -20,6 +20,7 @@ interface ActivityEvent {
   agent?: string;
   cost?: number;
   amount?: number;
+  txHash?: string;
   timestamp: number;
 }
 
@@ -261,6 +262,16 @@ export default function AgentActivityFeed() {
                             <span className={`text-[9px] font-mono font-semibold mr-1.5 ${actor.color}`}>[{actor.label}]</span>
                           )}
                           <span className={`text-xs ${color}`}>{ev.message}</span>
+                          {ev.txHash && !ev.txHash.startsWith("mock-") && (
+                            <a
+                              href={`https://stellar.expert/explorer/testnet/tx/${ev.txHash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-2 text-[9px] font-mono text-cyan-500 hover:text-cyan-400 underline underline-offset-2"
+                            >
+                              view on-chain
+                            </a>
+                          )}
                         </span>
                         <span className="text-[10px] text-neutral-500 font-mono whitespace-nowrap">
                           {new Date(ev.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
@@ -336,6 +347,16 @@ export default function AgentActivityFeed() {
                                           {ev.message}
                                           {cost != null && (
                                             <span className="text-green-400 ml-1.5 font-semibold font-mono">${cost.toFixed(4)}</span>
+                                          )}
+                                          {ev.txHash && !ev.txHash.startsWith("mock-") && (
+                                            <a
+                                              href={`https://stellar.expert/explorer/testnet/tx/${ev.txHash}`}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="ml-2 text-[9px] font-mono text-cyan-500 hover:text-cyan-400 underline underline-offset-2"
+                                            >
+                                              view on-chain
+                                            </a>
                                           )}
                                         </span>
                                         <span className="text-[10px] text-neutral-600 font-mono whitespace-nowrap">

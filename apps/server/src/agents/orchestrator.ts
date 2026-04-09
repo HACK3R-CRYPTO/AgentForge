@@ -233,8 +233,9 @@ Decompose this task, discover agents, check budget, and hire them to complete th
             emitActivity({
               type: "payment_sent",
               taskId: task.id,
-              message: `x402 payment of $${agentResult.amountPaid} settled on Stellar testnet for ${input.service_id}`,
-              amount: agentResult.amountPaid,
+              message: `${protocol.toUpperCase()} payment of $${amountPaid} settled on Stellar testnet for ${input.service_id}`,
+              amount: amountPaid,
+              txHash: agentResult.txHash,
               timestamp: Date.now(),
             });
 

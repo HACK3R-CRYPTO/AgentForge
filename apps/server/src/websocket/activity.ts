@@ -5,6 +5,7 @@ interface ActivityEvent {
   taskId?: string;
   message: string;
   amount?: number;
+  txHash?: string;
   timestamp: number;
 }
 
