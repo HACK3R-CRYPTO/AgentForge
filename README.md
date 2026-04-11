@@ -1,6 +1,6 @@
 # AgentForge
 
-A multi-agent service economy on Stellar. AI agents autonomously discover, hire, and pay each other for work using USDC micropayments. No wallets. No API keys. No human in the loop.
+> You submit a task. AI agents get to work, hire each other, and settle payments on Stellar in real time. You get results. Every payment is verifiable on-chain.
 
 Built for [Stellar Hacks: Agents 2026](https://dorahacks.io/hackathon/stellar-agents-x402-stripe-mpp/detail).
 
@@ -13,51 +13,95 @@ Built for [Stellar Hacks: Agents 2026](https://dorahacks.io/hackathon/stellar-ag
 
 ---
 
-## What it does
+## The Problem
 
-You submit a task with a USDC budget. The Orchestrator (Claude AI with tool use) breaks it into subtasks, queries the on-chain ServiceRegistry to find specialist agents, checks the SpendingPolicy contract for budget limits, and hires each agent with a micropayment. Results come back in under 30 seconds. Total cost: $0.006 USDC.
+You want something researched. You open ChatGPT. You get a generic answer. You copy it somewhere else to get it summarized. You open another tab to analyze it. You are doing all the coordination yourself.
 
-The key part: the Scraper agent autonomously pays the Summarizer agent from its own Stellar wallet. The Orchestrator is not involved. Two separate wallets, two separate Stellar transactions, zero platform involvement. That is a real agent-to-agent economy.
+That is not a research problem. That is an infrastructure problem.
 
-Every hire fires a `record_hire` call on the ServiceRegistry contract. It emits a permanent `("hire", service_id, payer_address, amount_stroops, protocol)` event on Stellar. The Live Activity feed shows a "view on-chain" link after each payment — click it to see the real transaction on Stellar Expert. The Payment Explorer tab shows every payment with its protocol badge (x402 or MPP) and a direct link to the Stellar transaction.
+The deeper issue: agents that need to hire other agents have no payment rail. Stripe charges $0.30 per transaction. Ethereum charges $2 to $50 in gas. If your agent call is worth $0.001, no payment rail on earth makes that viable.
 
-The Spending Policy widget reads the remaining budget directly from the Soroban SpendingPolicy contract. The sidebar and the activity log always show the same number because both read from the same on-chain source. Agent call counts in the Registry tab also persist on-chain — they accumulate across server restarts.
+**Stellar charges $0.000001 per transaction.** That is not a typo. At that fee level, machines can pay machines and still make money.
 
-```
-User submits task
-  → Orchestrator queries ServiceRegistry (Soroban)
-  → Orchestrator checks SpendingPolicy (Soroban)
-  → Orchestrator hires Scraper via x402 ($0.001 USDC)
-  → Scraper hires Summarizer via MPP ($0.002 from its own wallet)
-  → Orchestrator hires Analyst via x402 ($0.003 USDC)
-  → All 3 Stellar transactions settle in under 5 seconds
-  → User receives complete AI report
-```
+AgentForge is built on that premise.
 
 ---
 
-## Why this is different
+## What AgentForge Does
 
-Most agent projects put one AI on the buying side. AgentForge runs a full economy: agents have their own wallets, earn from their own work, and spend on other agents without permission from the orchestrator.
+AgentForge is a multi-agent service economy on Stellar. You submit a task with a USDC budget. A swarm of AI agents goes to work — discovering each other on-chain, hiring each other, paying each other in USDC, and returning results without a human touching anything after the initial submit.
 
-Two things no other submission combines:
+Here is what happens when you submit "Research the top 3 Stellar DeFi projects" with a $0.05 budget:
 
-**Two payment protocols on one platform.** x402 (HTTP-native pay-per-request) handles the Scraper and Analyst. MPP Charge (draft-stellar-charge-00, Soroban-native) handles the Summarizer. Both settle on Stellar testnet with real transaction hashes you can verify.
+1. The Orchestrator (Claude AI with tool use) reads the task and breaks it into subtasks
+2. It queries the on-chain Soroban ServiceRegistry to discover available specialist agents
+3. It checks the Soroban SpendingPolicy contract to verify the budget allows it
+4. It hires the Scraper agent — pays $0.001 USDC via x402, gets raw web data back
+5. The Scraper autonomously hires the Summarizer — pays $0.002 USDC directly from its own Stellar wallet via MPP Charge — the Orchestrator is not involved in this payment at all
+6. The Orchestrator hires the Analyst agent — pays $0.003 USDC via x402, gets a structured report back
+7. You receive the final report
 
-**On-chain spending guardrails.** The SpendingPolicy Soroban contract enforces daily and per-transaction USDC caps for the Orchestrator wallet. This is not a server-side check. The contract's `__check_auth` pattern enforces it at the protocol level. A runaway Claude instance cannot exceed the budget. The dashboard reads remaining budget directly from the contract — no in-memory approximation.
+Total cost: $0.006 USDC across 3 Stellar transactions. No wallet popup. No API key. No monthly bill.
+
+Step 5 is what makes this genuinely different. Two AI agents transacting directly on Stellar with no platform in the middle.
 
 ---
 
-## Why Stellar
+## The Bigger Picture
 
-| Rail | Fee per transaction | $0.001 payment viable |
+Uber did not build cars. They built the infrastructure. Drivers showed up. Riders showed up. Uber just built the layer that connected them.
+
+We are doing the same thing for the AI age. ChatGPT, Claude, Gemini are everywhere. The models exist. What is missing is the infrastructure for agents to find work, collaborate, and get paid.
+
+AgentForge is that infrastructure layer.
+
+The ServiceRegistry is open. Any developer can register a specialized agent — a legal document summarizer, a domain-specific analyst, a local language scraper. Register once. Earn USDC every time your agent gets hired. No middleman. No platform cut.
+
+---
+
+## What Makes It Different
+
+| | Existing Agents | AgentForge |
 |---|---|---|
-| Bank wire | $25.00 | No |
-| Stripe | $0.30 | No |
-| Ethereum | $2.00 | No |
-| Stellar | $0.000001 | Yes |
+| Can agents pay each other? | No | Yes, direct wallet-to-wallet on Stellar |
+| Is there on-chain evidence? | No | Yes, every hire emits a permanent Soroban event |
+| Are spending limits enforced? | Server-side only | On-chain via SpendingPolicy contract |
+| Can external devs register agents? | No | Yes, open ServiceRegistry |
+| Are payments viable at $0.001? | Never (Stripe/ETH fees) | Always (Stellar $0.000001/tx) |
 
-Stellar is the only rail where agent micropayments are economically viable. $0.006 in agent fees on any other chain would cost more in fees than the work is worth.
+---
+
+## The Agent-to-Agent Payment
+
+The core mechanic: agents hire and pay each other without human involvement.
+
+After the Scraper fetches content, it pays the Summarizer $0.002 USDC directly from its own Stellar wallet via MPP Charge. The Orchestrator is not involved. No approval needed. One agent recognizes it needs a specialist, hires them, and pays on Stellar.
+
+This works because of three things:
+
+- **x402** — HTTP-native pay-per-request. Payment happens inside the same API call as the work. The Scraper and Analyst use this.
+- **MPP Charge (draft-stellar-charge-00)** — Soroban-native payment. The Summarizer uses this. The Scraper pays the Summarizer with its own keypair — a direct wallet-to-wallet transfer.
+- **Stellar fees** — $0.000001 per transaction. Every agent hop is economically viable.
+
+---
+
+## On-Chain Evidence
+
+Every hire emits a permanent event on the ServiceRegistry Soroban contract:
+
+```
+topic: ["hire", service_id]
+body:  [payer_address, amount_stroops, protocol]
+```
+
+This is not a server log. Open the ServiceRegistry on Stellar Expert, click Events, and you see every hire that ever happened — payer address, exact amount, protocol. It cannot be edited or deleted.
+
+The Live Activity feed shows a "view on-chain" link after every payment. The Payment Explorer tab shows every payment with protocol badges (x402 or MPP) and direct Stellar Expert links.
+
+Three things you can verify without trusting us:
+1. Open the ServiceRegistry Events tab — hire events are there permanently
+2. Click any "view on-chain" link in the Live Activity feed — real Stellar transaction
+3. Check the SpendingPolicy contract — remaining budget matches what the dashboard shows
 
 ---
 
@@ -65,7 +109,7 @@ Stellar is the only rail where agent micropayments are economically viable. $0.0
 
 ```mermaid
 flowchart TD
-    User(["User\nNext.js Dashboard"])
+    U(["User\nNext.js Dashboard"])
 
     subgraph Server["AgentForge Server (Express.js)"]
         Orch["Orchestrator\nClaude AI with tool use"]
@@ -81,7 +125,7 @@ flowchart TD
         USDC["USDC Payments\nHorizon, under 5 seconds"]
     end
 
-    User -->|"submit task + budget"| Orch
+    U -->|"submit task + budget"| Orch
     Orch -->|"discover agents"| Registry
     Orch -->|"check budget"| Policy
     Orch -->|"hire via x402 $0.001"| Scraper
@@ -91,8 +135,7 @@ flowchart TD
     Analyst -->|"verify x402 payment"| Facilitator
     Facilitator -->|"settle TX"| USDC
     Summarizer -->|"MPP Charge TX"| USDC
-    Policy -->|"record spend"| USDC
-    Orch -->|"result"| User
+    Orch -->|"result"| U
 ```
 
 ### x402 flow (Scraper and Analyst)
@@ -115,11 +158,11 @@ sequenceDiagram
     S-->>P: 200 OK + scraped content
 ```
 
-### MPP Charge flow (Summarizer)
+### MPP Charge flow (Summarizer — agent-to-agent)
 
 ```mermaid
 sequenceDiagram
-    participant C as MPP Client
+    participant C as Scraper Wallet
     participant S as Summarizer Endpoint
     participant T as Stellar Testnet
 
@@ -132,18 +175,26 @@ sequenceDiagram
     S-->>C: 200 OK + summary + Payment-Receipt header
 ```
 
-### Agent-to-agent payment (Scraper hires Summarizer)
+---
 
-The Orchestrator calls `scrape_and_summarize`. The Scraper fetches the URL internally, then pays the Summarizer from its own wallet via MPP. The Orchestrator's wallet is not involved in the second payment.
+## Why Stellar
 
-```
-Orchestrator → Scraper    (x402, $0.001, Platform wallet)
-               Scraper → Summarizer  (MPP, $0.002, SCRAPER_SECRET_KEY)
-```
+| Rail | Fee per transaction | $0.001 payment viable |
+|---|---|---|
+| Bank wire | $25.00 | No |
+| Stripe | $0.30 | No |
+| Ethereum | $2.00 | No |
+| Stellar | $0.000001 | Yes |
 
-Two wallets. Two transactions. Zero orchestrator involvement in the second hop.
+Stellar is the only rail where agent micropayments are economically viable. $0.006 in agent fees on any other chain would cost more in fees than the work is worth.
 
-After each payment, the server fires `record_hire` on the ServiceRegistry contract. This emits a permanent on-chain event with the payer address, amount in stroops, and protocol. The Live Activity feed links directly to the Stellar transaction. The Payment Explorer tab shows all payments for the session with protocol badges and Stellar Expert links.
+At scale (1,000 agents, 1,000 calls per day):
+
+| Cost | Traditional (Stripe per call) | AgentForge (Stellar) |
+|---|---|---|
+| Daily transaction fees | $300,000 | $1.00 |
+| Monthly fees | $9,000,000 | $30 |
+| Viable at $0.001 per call | Never | Always |
 
 ---
 
@@ -223,20 +274,18 @@ Both contracts are deployed on Stellar Testnet. Source is in `packages/contracts
 
 ### ServiceRegistry
 
-Agents register on startup with their name, endpoint URL, price, payment type (0 for x402, 1 for MPP), and category. The Orchestrator queries this contract before hiring to discover what is available.
-
-Agent call counts are stored on-chain via `record_call` and persist across server restarts. After every successful hire the server fires `record_hire` to emit a permanent event on-chain.
+An on-chain marketplace for agent services. Agents register on startup with name, endpoint, price, payment type (x402 or MPP), and category. The Orchestrator queries this contract before hiring anyone. After every hire, the server fires `record_hire` to emit a permanent on-chain event.
 
 | Function | Description |
 |---|---|
 | `register(agent, name, description, endpoint, price, payment_type, category)` | Register an agent |
 | `query_all()` | Return all registered services |
 | `record_call(service_id)` | Increment call counter after each hire |
-| `record_hire(service_id, payer, amount_stroops, protocol)` | Emit permanent hire event on-chain with payer address, amount, and protocol |
+| `record_hire(service_id, payer, amount_stroops, protocol)` | Emit permanent hire event on-chain |
 
 ### SpendingPolicy
 
-Enforces programmable spending limits for the Orchestrator. Prevents runaway AI spending at the contract level, not the server level. The dashboard Spending Policy widget reads directly from this contract — the sidebar and activity log always show the same on-chain value.
+Enforces daily and per-transaction USDC caps for the Orchestrator at the contract level. The dashboard Spending Policy widget reads remaining budget directly from this contract.
 
 | Function | Description |
 |---|---|
@@ -246,59 +295,16 @@ Enforces programmable spending limits for the Orchestrator. Prevents runaway AI 
 
 ---
 
-## Payment flows
-
-### x402 (Scraper and Analyst)
-
-```
-1. Platform wallet   GET /api/agents/scraper
-2. x402 middleware   402 PAYMENT-REQUIRED (price: 0.001 USDC)
-3. x402 client       signs USDC transfer, retries with PAYMENT-SIGNATURE header
-4. x402 Facilitator  verifies + submits TX to Stellar testnet
-5. Server            200 OK + content
-6. recordPayment()   logs tx hash + amount (protocol: x402)
-7. recordHireOnChain() emits on-chain hire event via ServiceRegistry
-```
-
-### MPP Charge (Summarizer)
-
-```
-1. MPP client        POST /api/agents/summarizer
-2. mppGuard          402 WWW-Authenticate (MPP Charge challenge, amount: 0.002 USDC)
-3. MPP client        signs Soroban auth entry, retries with credential header
-4. mppGuard          submits Soroban USDC transfer TX to Stellar testnet
-5. Server            200 OK + summary + Payment-Receipt header
-6. recordPayment()   logs tx hash + amount (protocol: mpp)
-7. recordHireOnChain() emits on-chain hire event via ServiceRegistry
-```
-
-### Agent-to-agent (Scraper hires Summarizer)
-
-```
-1. Orchestrator calls scrape_and_summarize tool
-2. Scraper fetches URL internally
-3. Scraper's MPP client (SCRAPER_SECRET_KEY) calls /api/agents/summarizer
-4. mppGuard issues MPP Charge challenge
-5. Scraper wallet pays Summarizer wallet $0.002 directly
-6. Stellar TX settles; Orchestrator wallet uninvolved in steps 3-5
-7. recordHireOnChain() emits on-chain hire event for Summarizer
-8. Payment Explorer shows the MPP entry with "view on-chain" link
-```
-
----
-
 ## Dashboard
-
-The dashboard at `/dashboard` shows four panels:
 
 | Tab | What it shows |
 |---|---|
-| Live Activity | Real-time WebSocket feed of all agent events. Payment events include a "view on-chain" link to Stellar Expert. |
-| Payments | All payments for the current server session. Each entry shows the protocol badge (x402 or MPP), amount, payer, recipient, and a Stellar Expert link when a real tx hash is available. |
-| Registry | All agents registered on the ServiceRegistry Soroban contract. Call counts persist on-chain and accumulate across restarts. |
+| Live Activity | Real-time WebSocket feed. Payment events include a "view on-chain" link to Stellar Expert. |
+| Payments | All payments for the current session with protocol badges (x402 or MPP) and Stellar Expert links. |
+| Registry | All agents registered on the ServiceRegistry Soroban contract. Call counts persist on-chain. |
 | Result | The final AI report produced by the Orchestrator. |
 
-The **Spending Policy** widget on the left reads remaining budget directly from the Soroban SpendingPolicy contract — the same value the Orchestrator checks before hiring agents.
+The **Spending Policy** widget reads remaining budget directly from the Soroban SpendingPolicy contract.
 
 ---
 
@@ -326,10 +332,10 @@ The **Spending Policy** widget on the left reads remaining budget directly from 
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/api/payments/history` | Payment ledger (x402 + MPP, newest first) |
-| `GET` | `/api/payments/budget` | Soroban SpendingPolicy status (reads on-chain) |
+| `GET` | `/api/payments/budget` | SpendingPolicy status (reads on-chain) |
 | `GET` | `/api/payments/balances` | USDC balances for all agent wallets |
 
-### Debug (rate-limited to 10 per minute, no payment required)
+### Debug (rate-limited, no payment required)
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -362,35 +368,11 @@ The **Spending Policy** widget on the left reads remaining budget directly from 
 | `SPENDING_POLICY_CONTRACT_ID` | Deployed Soroban SpendingPolicy contract address |
 | `USDC_CONTRACT_ID` | USDC Stellar Asset Contract address on testnet |
 | `STELLAR_RPC_URL` | Soroban RPC endpoint (default: `https://soroban-testnet.stellar.org`) |
-| `MOCK_MODE` | Set `true` to skip real AI and payments; useful for frontend dev |
+| `MOCK_MODE` | Set `true` to skip real AI and payments |
 | `PORT` | API server port (default: 4021) |
 | `FACILITATOR_PORT` | Facilitator server port (default: 4022) |
-| `FRONTEND_URL` | Frontend origin for CORS (default: `http://localhost:3000`) |
+| `FRONTEND_URL` | Frontend origin for CORS |
 | `SERVER_URL` | Public base URL for on-chain agent endpoint registration |
-
----
-
-## Business model
-
-The platform wallet pays all agent costs directly so you can test without any crypto setup.
-
-In production, a Stripe payment sits in front of task submission:
-
-```
-User pays platform   $0.10 per task  (Stripe, card, fiat)
-Platform pays agents $0.006 in USDC  (Stellar micropayments)
-Platform keeps       $0.094 per task
-```
-
-You never touch crypto. You never hold a wallet. All the x402 and MPP complexity is invisible to you.
-
-At scale (1,000 agents, 1,000 calls per day):
-
-| Cost | Traditional (Stripe per call) | AgentForge (Stellar) |
-|---|---|---|
-| Daily transaction fees | $300,000 | $1.00 |
-| Monthly fees | $9,000,000 | $30 |
-| Viable at $0.001 per call | Never | Always |
 
 ---
 
