@@ -1,11 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { queryServiceRegistry, incrementCallCount, recordHireOnChain } from "../stellar/registry.js";
+import { queryServiceRegistry, getAllServices, incrementCallCount, recordHireOnChain } from "../stellar/registry.js";
 import { checkBudget, recordSpend } from "../stellar/policy.js";
 import { emitActivity } from "../websocket/activity.js";
 import {
   callScraperAgent,
   callSummarizerAgent,
   callAnalystAgent,
+  callExternalAgent,
   recordPayment,
 } from "../payments/x402client.js";
 import { scrapeAndSummarize } from "./scraper.js";
@@ -35,14 +36,14 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "discover_agents",
     description:
-      "Search the on-chain ServiceRegistry for available specialist agents by category",
+      "Search the on-chain ServiceRegistry for available specialist agents by category. The registry is open — external developers may have registered agents beyond the built-in three. Always discover before hiring.",
     input_schema: {
       type: "object" as const,
       properties: {
         category: {
           type: "string",
           description:
-            'Category to search: "scraper", "summarizer", or "analyst"',
+            'Category to search, e.g. "scraper", "summarizer", "analyst", or any custom category registered by external developers.',
         },
       },
       required: ["category"],
@@ -51,18 +52,18 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "hire_agent",
     description:
-      "Hire a specialist agent to perform a subtask. Payment is made via x402 or MPP on Stellar.",
+      "Hire a specialist agent to perform a subtask. Use the service_id returned by discover_agents. Payment is made via x402 or MPP on Stellar. Works for both built-in and externally registered agents.",
     input_schema: {
       type: "object" as const,
       properties: {
-        service_id: { type: "string", description: "Service ID from registry" },
+        service_id: { type: "string", description: "Service ID from the registry (use the id field returned by discover_agents)" },
         task_description: {
           type: "string",
           description: "What the agent should do",
         },
         input_data: {
           type: "string",
-          description: "Input data for the agent",
+          description: "Input data for the agent (URL for scrapers, text for summarizers, data for analysts)",
         },
       },
       required: ["service_id", "task_description"],
@@ -204,27 +205,56 @@ Decompose this task, discover agents, check budget, and hire them to complete th
           });
 
           try {
+            // Look up the full service record so we can route to external agents
+            const allServices = await getAllServices();
+            const service = allServices.find(
+              (s) => s.id === input.service_id || s.category === input.service_id
+            );
+
             let agentResult;
-            if (input.service_id.startsWith("scraper")) {
-              const url = input.input_data || "https://stellar.org";
-              agentResult = await callScraperAgent(url);
-            } else if (input.service_id.startsWith("summarizer")) {
-              agentResult = await callSummarizerAgent(
-                input.input_data || input.task_description
-              );
+            const isBuiltIn =
+              !service ||
+              service.endpoint.includes("/api/agents/scraper") ||
+              service.endpoint.includes("/api/agents/summarizer") ||
+              service.endpoint.includes("/api/agents/analyst");
+
+            if (isBuiltIn) {
+              // Route to built-in agent handlers
+              const cat = service?.category ||
+                (input.service_id.startsWith("scraper") || input.service_id === "0" ? "scraper"
+                  : input.service_id.startsWith("summarizer") || input.service_id === "1" ? "summarizer"
+                  : "analyst");
+              if (cat === "scraper") {
+                const url = input.input_data || "https://stellar.org";
+                agentResult = await callScraperAgent(url);
+              } else if (cat === "summarizer") {
+                agentResult = await callSummarizerAgent(
+                  input.input_data || input.task_description
+                );
+              } else {
+                agentResult = await callAnalystAgent(
+                  input.input_data || "",
+                  input.task_description
+                );
+              }
             } else {
-              agentResult = await callAnalystAgent(
-                input.input_data || "",
-                input.task_description
+              // External agent — call its registered endpoint via x402
+              agentResult = await callExternalAgent(
+                service.endpoint,
+                input.input_data || input.task_description,
+                service.price,
+                service.name,
+                service.agentId
               );
             }
 
-            const category = input.service_id.startsWith("scraper") || input.service_id === "0" ? "scraper"
-              : input.service_id.startsWith("summarizer") || input.service_id === "1" ? "summarizer"
-              : "analyst";
-            const agentLabel = category === "scraper" ? "Web Scraper" : category === "summarizer" ? "Summarizer" : "Data Analyst";
-            const protocol: "x402" | "mpp" = category === "summarizer" ? "mpp" : "x402";
-            const amountPaid = agentResult.amountPaid || 0.001;
+            const category = service?.category ||
+              (input.service_id.startsWith("scraper") || input.service_id === "0" ? "scraper"
+                : input.service_id.startsWith("summarizer") || input.service_id === "1" ? "summarizer"
+                : "analyst");
+            const agentLabel = service?.name || (category === "scraper" ? "Web Scraper" : category === "summarizer" ? "Summarizer" : "Data Analyst");
+            const protocol: "x402" | "mpp" = service?.paymentType ?? (category === "summarizer" ? "mpp" : "x402");
+            const amountPaid = agentResult.amountPaid || service?.price || 0.001;
             await recordSpend(amountPaid);
             incrementCallCount(category);
             recordHireOnChain(

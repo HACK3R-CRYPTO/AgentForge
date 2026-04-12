@@ -347,12 +347,55 @@ export function recordHireOnChain(
   });
 }
 
+/**
+ * Register an external agent on-chain and add it to the in-memory registry.
+ * Called when a developer POSTs to /api/agents/register.
+ *
+ * @param service      Agent metadata
+ * @param agentWallet  Stellar public key that will receive payments
+ * @param paymentTypeNum  0 = x402, 1 = MPP
+ */
 export async function registerService(
-  service: Omit<AgentService, "id" | "reputationScore" | "totalCalls">
+  service: Omit<AgentService, "id" | "reputationScore" | "totalCalls">,
+  agentWallet?: string,
+  paymentTypeNum = 0
 ): Promise<AgentService> {
+  const secretKey = process.env.ORCHESTRATOR_SECRET_KEY;
+  const contractId = process.env.SERVICE_REGISTRY_CONTRACT_ID;
+
+  let onChainId: string | undefined;
+
+  if (secretKey && contractId && agentWallet) {
+    try {
+      const agentAddress = new StellarSdk.Address(agentWallet);
+      const retval = await enqueueContractTx(
+        "register",
+        [
+          StellarSdk.nativeToScVal(agentAddress, { type: "address" }),
+          StellarSdk.nativeToScVal(service.name, { type: "string" }),
+          StellarSdk.nativeToScVal(service.description, { type: "string" }),
+          StellarSdk.nativeToScVal(service.endpoint, { type: "string" }),
+          StellarSdk.nativeToScVal(BigInt(Math.round(service.price * 10_000_000)), { type: "i128" }),
+          StellarSdk.nativeToScVal(paymentTypeNum, { type: "u32" }),
+          StellarSdk.nativeToScVal(service.category, { type: "string" }),
+        ],
+        secretKey
+      );
+
+      if (retval) {
+        const id = StellarSdk.scValToNative(retval) as bigint;
+        onChainIds[service.category] = id;
+        onChainId = id.toString();
+        console.log(`[Registry] External agent "${service.name}" registered on-chain → id=${id}`);
+      }
+    } catch (err) {
+      console.warn(`[Registry] Could not register external agent "${service.name}" on-chain:`, String(err).slice(0, 120));
+    }
+  }
+
   const newService: AgentService = {
     ...service,
-    id: `${service.category}-${Date.now()}`,
+    id: onChainId || `${service.category}-${Date.now()}`,
     reputationScore: 100,
     totalCalls: 0,
   };

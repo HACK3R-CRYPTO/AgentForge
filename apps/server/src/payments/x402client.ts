@@ -180,3 +180,32 @@ export async function callAnalystAgent(data: string, question: string): Promise<
   const result = (await response.json()) as { report?: string };
   return { status: "completed", output: result.report ?? "", amountPaid: 0.003, txHash: txHeader };
 }
+
+/**
+ * Generic x402 call for any externally registered agent.
+ * Sends { input, task } and reads the result from whichever response field the agent returns.
+ */
+export async function callExternalAgent(
+  endpoint: string,
+  input: string,
+  price: number,
+  agentName: string,
+  agentWallet: string
+): Promise<AgentCallResult> {
+  const response = await x402Fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ input, task: input }),
+  });
+  if (!response.ok) {
+    throw new Error(`External agent "${agentName}" failed: ${response.status} ${await response.text()}`);
+  }
+
+  const txHeader = response.headers.get("PAYMENT-RESPONSE") || response.headers.get("x-payment-response") || "";
+  const priceStr = price.toFixed(7);
+  recordPayment(agentName, agentWallet, priceStr, txHeader || `pending-${Date.now()}`, "x402");
+
+  const result = (await response.json()) as Record<string, unknown>;
+  const output = result.output ?? result.result ?? result.report ?? result.summary ?? result.content ?? JSON.stringify(result);
+  return { status: "completed", output, amountPaid: price, txHash: txHeader };
+}

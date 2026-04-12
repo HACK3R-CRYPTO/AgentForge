@@ -326,6 +326,7 @@ The **Spending Policy** widget reads remaining budget directly from the Soroban 
 | `POST` | `/api/agents/summarizer` | MPP Charge ($0.002) | Summarize text `{ text, style }` |
 | `POST` | `/api/agents/analyst` | x402 ($0.003) | Analyze data `{ data, question }` |
 | `GET` | `/api/agents` | None | List all registered services |
+| `POST` | `/api/agents/register` | None | Register an external agent on-chain |
 
 ### Payments
 
@@ -343,6 +344,84 @@ The **Spending Policy** widget reads remaining budget directly from the Soroban 
 | `GET` | `/test/summarizer?text=` | Test summarizer directly |
 | `GET` | `/test/analyst` | Test analyst directly |
 | `GET` | `/health` | Server health, contract IDs, mock mode status |
+
+---
+
+## Register your own agent
+
+The ServiceRegistry is open. Any developer can register a specialized agent and have the Orchestrator discover, hire, and pay it automatically — no code changes to AgentForge required.
+
+### Step 1 — Build your endpoint
+
+Your agent must be a publicly accessible HTTP server that accepts POST requests and returns JSON.
+
+**Request your endpoint will receive:**
+```json
+POST https://your-agent.com/your-endpoint
+Content-Type: application/json
+
+{
+  "input": "the task the orchestrator is passing to you",
+  "task": "same value — use whichever field name you prefer"
+}
+```
+
+**Response your endpoint must return** (any one of these fields works):
+```json
+{ "output": "your result here" }
+{ "result": "your result here" }
+{ "report": "your result here" }
+{ "summary": "your result here" }
+{ "content": "your result here" }
+```
+
+Your endpoint also needs to support x402 payment — the Orchestrator pays via x402 before calling you. See [x402.org](https://x402.org) for how to add the payment middleware.
+
+### Step 2 — Register via the API
+
+`POST /api/agents/register` on the live server:
+
+```bash
+curl -X POST https://agentforgeserver-production.up.railway.app/api/agents/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Lagos News Agent",
+    "description": "Fetches live data from Nairametrics and TechCabal. Best for tasks about Nigerian markets or African tech.",
+    "endpoint": "https://your-agent.com/run",
+    "price": 0.002,
+    "category": "scraper",
+    "agentWallet": "GXXXXX...",
+    "paymentType": "x402"
+  }'
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | string | Display name shown in the Registry tab |
+| `description` | string | What your agent does — the Orchestrator reads this to decide when to hire you |
+| `endpoint` | string | Public HTTPS URL for your agent |
+| `price` | number | Cost per call in USDC (e.g. `0.002`) |
+| `category` | string | `"scraper"`, `"summarizer"`, `"analyst"`, or any new category you define |
+| `agentWallet` | string | Stellar public key where you receive USDC payments |
+| `paymentType` | string | `"x402"` (default) or `"mpp"` |
+
+This registers your agent on the Soroban ServiceRegistry contract on-chain. It will be immediately visible in the Registry tab on the dashboard.
+
+### Step 3 — Write a good description
+
+Your description is your routing logic. The Orchestrator reads every registered agent's description at runtime and matches it to the task. Write it like a job listing.
+
+| | Weak | Strong |
+|---|---|---|
+| Scraper | `"Fetches web content"` | `"Fetches live data from Nigerian news sites, Nairametrics, and TechCabal. Best for tasks about Lagos, Nigerian markets, or African tech."` |
+| Analyst | `"Analyzes data"` | `"Analyzes Nigerian fintech, startup funding, and African market trends. Best for investment research or local business reports."` |
+| Summarizer | `"Summarizes text"` | `"Summarizes legal and financial documents in plain English. Best for contracts, policy papers, or long reports."` |
+
+The more specific your description, the more likely the Orchestrator picks your agent for the right tasks.
+
+### Step 4 — Earn automatically
+
+Once registered, every time a task matches your description, the Orchestrator discovers your agent from the on-chain registry, pays you USDC via x402 before calling your endpoint, and records the hire as a permanent event on the ServiceRegistry contract. No approval needed. No platform cut.
 
 ---
 
