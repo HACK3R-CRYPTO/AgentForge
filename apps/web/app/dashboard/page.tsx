@@ -72,6 +72,16 @@ export default function Dashboard() {
               </span>
             ))}
             <a
+              href="/pitch.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-neutral-500 hover:text-indigo-400 transition-colors text-sm border border-neutral-800 hover:border-indigo-500/40 rounded-lg px-3 py-1.5"
+              title="View pitch deck"
+            >
+              <span className="text-base leading-none">📊</span>
+              <span className="hidden sm:inline">Pitch</span>
+            </a>
+            <a
               href="https://www.moltbook.com/m/agentforgestellar"
               target="_blank"
               rel="noopener noreferrer"
