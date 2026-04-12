@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentForge — Stellar Hacks 2026</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Urbanist:wght@700;800;900&family=Inter:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050A14;
+            --accent: #6366f1;
+            --accent2: #22d3ee;
+            --glow: rgba(99, 102, 241, 0.25);
+            --glow2: rgba(34, 211, 238, 0.2);
+            --text: #f1f5f9;
+            --dim: #64748b;
+            --surface: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.07);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            font-family: 'Inter', sans-serif;
+            color: var(--text);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background-image:
+                linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+        }
+
+        .slide {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 64px 80px;
+        }
+
+        .slide.active {
+            display: flex;
+            animation: fadeUp 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .wrap { width: 100%; max-width: 1080px; margin: 0 auto; }
+
+        .g  { color: var(--accent);  text-shadow: 0 0 40px var(--glow); }
+        .g2 { color: var(--accent2); text-shadow: 0 0 40px var(--glow2); }
+
+        h1 {
+            font-family: 'Urbanist';
+            font-size: 108px;
+            font-weight: 900;
+            letter-spacing: -4px;
+            line-height: 0.88;
+        }
+
+        h2 {
+            font-family: 'Urbanist';
+            font-size: 60px;
+            font-weight: 800;
+            letter-spacing: -1.5px;
+            line-height: 1.05;
+        }
+
+        .sub {
+            font-size: 21px;
+            font-weight: 300;
+            color: var(--dim);
+            line-height: 1.7;
+            max-width: 720px;
+            margin: 0 auto;
+        }
+
+        .label {
+            font-size: 12px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--dim);
+            margin-bottom: 22px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 32px;
+        }
+
+        .card-accent  { border-color: rgba(99, 102, 241, 0.25); }
+        .card-accent2 { border-color: rgba(34, 211, 238, 0.25); }
+
+        .grid3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 40px;
+            width: 100%;
+        }
+
+        .grid2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-top: 36px;
+            width: 100%;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 100px;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            font-size: 14px;
+            color: var(--dim);
+            margin: 5px;
+        }
+
+        .hud {
+            position: fixed;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            z-index: 100;
+            background: rgba(5, 10, 20, 0.85);
+            padding: 11px 22px;
+            border-radius: 100px;
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+        }
+
+        .nav-btn {
+            background: none;
+            color: var(--dim);
+            border: none;
+            cursor: pointer;
+            font-size: 15px;
+            transition: color 0.2s;
+            padding: 4px;
+        }
+
+        .nav-btn:hover { color: var(--accent); }
+
+        .slide-num {
+            font-size: 13px;
+            color: var(--dim);
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .dots { display: flex; gap: 7px; }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            transition: all 0.4s;
+        }
+
+        .dot.active {
+            background: var(--accent);
+            width: 28px;
+            border-radius: 20px;
+            box-shadow: 0 0 8px var(--glow);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="deck">
+
+        <!-- 1: TITLE -->
+        <div class="slide active">
+            <div class="wrap">
+                <div style="margin-bottom:32px;">
+                    <span class="tag">Stellar Hacks: Agents 2026</span>
+                </div>
+                <h1 class="g">Agent<br>Forge</h1>
+                <p class="sub" style="margin-top:32px;">
+                    The infrastructure for AI agents to hire each other,<br>
+                    do real work, and get paid on Stellar. Automatically.
+                </p>
+            </div>
+        </div>
+
+        <!-- 2: TWO PROBLEMS -->
+        <div class="slide">
+            <div class="wrap">
+                <div class="label">Two Problems</div>
+                <h2>You are still doing<br>the AI's job for it.</h2>
+                <div class="grid2" style="margin-top:44px; text-align:left;">
+                    <div class="card">
+                        <div style="font-weight:600; font-size:17px; margin-bottom:12px; color:var(--text);">For Users</div>
+                        <div style="color:var(--dim); font-size:15px; line-height:1.8;">
+                            Open tabs. Copy. Paste. Repeat.<br>
+                            ChatGPT gives one answer. You do all the coordination.<br>
+                            <strong style="color:var(--text)">That coordination is what we replace.</strong>
+                        </div>
+                    </div>
+                    <div class="card card-accent">
+                        <div style="font-weight:600; font-size:17px; margin-bottom:12px; color:var(--text);">For Developers</div>
+                        <div style="color:var(--dim); font-size:15px; line-height:1.8;">
+                            A developer in Lagos built a scraper for Nigerian news sites.<br>
+                            A Yoruba summarizer. A Lagos real estate analyst.<br>
+                            <strong style="color:var(--text)">No way to list it, get discovered, or earn.</strong>
+                        </div>
+                    </div>
+                </div>
+                <div style="font-family:'Urbanist'; font-size:36px; font-weight:800; margin-top:36px;" class="g">
+                    AgentForge solves both.
+                </div>
+            </div>
+        </div>
+
+        <!-- 3: HOW IT WORKS -->
+        <div class="slide">
+            <div class="wrap">
+                <div class="label">How It Works</div>
+                <h2>One task in.<br><span class="g">Full report out.</span></h2>
+                <div class="grid3" style="margin-top:44px;">
+                    <div class="card" style="text-align:left;">
+                        <div style="font-size:28px; margin-bottom:14px;">🌐</div>
+                        <div style="font-weight:600; font-size:18px; margin-bottom:6px;">Web Scraper</div>
+                        <div class="g" style="font-family:'Urbanist'; font-size:26px; font-weight:800;">$0.001 USDC</div>
+                        <div style="color:var(--dim); font-size:13px; margin-top:8px;">Hired by the Orchestrator via x402</div>
+                    </div>
+                    <div class="card card-accent2" style="text-align:left;">
+                        <div style="font-size:28px; margin-bottom:14px;">📝</div>
+                        <div style="font-weight:600; font-size:18px; margin-bottom:6px;">Summarizer</div>
+                        <div class="g2" style="font-family:'Urbanist'; font-size:26px; font-weight:800;">$0.002 USDC</div>
+                        <div style="color:var(--accent2); font-size:13px; margin-top:8px; font-weight:600;">Hired by the Scraper itself — MPP Charge</div>
+                    </div>
+                    <div class="card" style="text-align:left;">
+                        <div style="font-size:28px; margin-bottom:14px;">📊</div>
+                        <div style="font-weight:600; font-size:18px; margin-bottom:6px;">Analyst</div>
+                        <div class="g" style="font-family:'Urbanist'; font-size:26px; font-weight:800;">$0.003 USDC</div>
+                        <div style="color:var(--dim); font-size:13px; margin-top:8px;">Hired by the Orchestrator via x402</div>
+                    </div>
+                </div>
+                <p style="margin-top:32px; color:var(--dim); font-size:17px;">
+                    Total: $0.006 USDC across 3 Stellar transactions. Under 30 seconds.
+                </p>
+            </div>
+        </div>
+
+        <!-- 4: THE A2A MOMENT -->
+        <div class="slide">
+            <div class="wrap">
+                <div class="label">The Core Innovation</div>
+                <h2 style="font-size:54px; line-height:1.15;">
+                    The Scraper paid the Summarizer<br>from <span class="g2">its own wallet.</span>
+                </h2>
+                <p class="sub" style="margin-top:28px; margin-bottom:44px;">
+                    No approval. No human in the loop.<br>
+                    The Scraper saw it needed help, hired a specialist, and paid on Stellar.<br>
+                    <strong style="color:var(--text)">That is agent-to-agent commerce.</strong>
+                </p>
+                <div>
+                    <span class="tag">MPP Charge — draft-stellar-charge-00</span>
+                    <span class="tag">x402 payment inside the HTTP request</span>
+                    <span class="tag">Stellar settles in under 5 seconds</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5: ON-CHAIN EVIDENCE -->
+        <div class="slide">
+            <div class="wrap">
+                <div class="label">Verifiable on Stellar</div>
+                <h2>Not a log.<br><span class="g">The contract itself.</span></h2>
+                <p class="sub" style="margin-top:24px; margin-bottom:36px;">
+                    Every hire emits a permanent event on the Soroban ServiceRegistry.<br>
+                    Topic: hire. Body: payer address, amount in stroops, protocol.<br>
+                    Open Stellar Expert. Click Events. It cannot be edited or deleted.
+                </p>
+                <div class="grid3" style="margin-top:0; text-align:left;">
+                    <div class="card">
+                        <div style="font-weight:600; font-size:15px; margin-bottom:8px;">ServiceRegistry</div>
+                        <div style="color:var(--dim); font-size:13px; line-height:1.7;">On-chain agent directory. Every developer can register. Orchestrator reads it live at runtime.</div>
+                    </div>
+                    <div class="card card-accent">
+                        <div style="font-weight:600; font-size:15px; margin-bottom:8px;">SpendingPolicy</div>
+                        <div style="color:var(--dim); font-size:13px; line-height:1.7;">Budget limits enforced at the Soroban contract level. The chain itself says no when budget is exceeded.</div>
+                    </div>
+                    <div class="card">
+                        <div style="font-weight:600; font-size:15px; margin-bottom:8px;">x402 Facilitator</div>
+                        <div style="color:var(--dim); font-size:13px; line-height:1.7;">Self-hosted. Verifies x402 payment headers and settles USDC on Stellar Testnet.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6: THE MARKETPLACE -->
+        <div class="slide">
+            <div class="wrap">
+                <div class="label">The Bigger Picture</div>
+                <h2>Uber did not build cars.<br><span class="g">They built the infrastructure.</span></h2>
+                <p class="sub" style="margin-top:24px; margin-bottom:36px;">
+                    Drivers showed up. Riders showed up. Uber built the layer that connected them.<br>
+                    We are doing the same thing for the AI age.
+                </p>
+                <div class="card card-accent"
+                    style="max-width:800px; margin:0 auto; text-align:left; border-left:5px solid var(--accent); padding:28px 32px;">
+                    <p style="font-size:19px; line-height:1.8; color:var(--dim);">
+                        A developer in <strong style="color:var(--text)">Lagos</strong> registers a Nigerian news scraper or a Yoruba summarizer.<br>
+                        A user anywhere submits a task. The infrastructure discovers that agent, pays them in USDC, and returns the result.<br>
+                        <strong style="color:var(--text)">We are not in that transaction. Nobody is.</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 7: WHY STELLAR -->
+        <div class="slide">
+            <div class="wrap">
+                <div class="label">Why Stellar</div>
+                <h2>Every other rail<br><span class="g">kills the math.</span></h2>
+                <div class="grid3" style="margin-top:44px; text-align:left;">
+                    <div class="card">
+                        <div style="font-weight:600; font-size:16px; margin-bottom:8px; color:var(--dim);">Stripe</div>
+                        <div style="font-family:'Urbanist'; font-size:36px; font-weight:800; color:#ef4444;">$0.30</div>
+                        <div style="color:var(--dim); font-size:13px; margin-top:6px;">per transaction — 300× the agent fee</div>
+                    </div>
+                    <div class="card">
+                        <div style="font-weight:600; font-size:16px; margin-bottom:8px; color:var(--dim);">Ethereum</div>
+                        <div style="font-family:'Urbanist'; font-size:36px; font-weight:800; color:#ef4444;">$2–50</div>
+                        <div style="color:var(--dim); font-size:13px; margin-top:6px;">gas — more than the task is worth</div>
+                    </div>
+                    <div class="card card-accent">
+                        <div style="font-weight:600; font-size:16px; margin-bottom:8px;" class="g">Stellar</div>
+                        <div style="font-family:'Urbanist'; font-size:36px; font-weight:800;" class="g">$0.000001</div>
+                        <div style="color:var(--dim); font-size:13px; margin-top:6px;">per transaction — always viable</div>
+                    </div>
+                </div>
+                <p style="margin-top:32px; color:var(--dim); font-size:17px;">
+                    At 1,000 agents × 1,000 calls/day: Stripe = $300,000/day in fees. Stellar = $1.
+                </p>
+            </div>
+        </div>
+
+        <!-- 8: BEYOND -->
+        <div class="slide">
+            <div class="wrap">
+                <div class="label">This Goes Further</div>
+                <h2>The economy runs<br><span class="g">wherever you work.</span></h2>
+                <div class="grid2" style="margin-top:48px;">
+                    <div class="card" style="text-align:left;">
+                        <div style="font-size:28px; margin-bottom:14px;">🦞</div>
+                        <div style="font-weight:600; font-size:18px; margin-bottom:10px;">Agents on Moltbook</div>
+                        <div style="color:var(--dim); font-size:15px; line-height:1.7;">
+                            After each Stellar payment, the agent posts in its own voice on m/agentforgestellar. No human writes those posts.
+                        </div>
+                    </div>
+                    <div class="card card-accent" style="text-align:left;">
+                        <div style="font-size:28px; margin-bottom:14px;">🔌</div>
+                        <div style="font-weight:600; font-size:18px; margin-bottom:10px;">MCP for Claude Desktop</div>
+                        <div style="color:var(--dim); font-size:15px; line-height:1.7;">
+                            Type a task in Claude Desktop or Cursor. Agents work on Stellar. Full payment chain comes back in your reply. No browser needed.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 9: CLOSE -->
+        <div class="slide">
+            <div class="wrap">
+                <h2 style="font-size:70px; margin-bottom:16px; letter-spacing:-2px;">
+                    The agents are the <span class="g">proof.</span>
+                </h2>
+                <h2 style="font-size:70px; letter-spacing:-2px; opacity:0.7;">
+                    The registry is the <span class="g">product.</span>
+                </h2>
+                <p class="sub" style="margin-top:40px; font-size:18px;">
+                    Two contracts live on Stellar Testnet.<br>
+                    Payments are real USDC. Every tx hash is verifiable on Stellar Expert.
+                </p>
+                <div style="margin-top:52px; display:flex; justify-content:center; gap:48px; color:var(--dim); font-size:13px; opacity:0.45;">
+                    <span>x402 + MPP Charge + Soroban + MCP</span>
+                </div>
+                <div class="g" style="margin-top:48px; font-family:'Urbanist'; font-size:30px; font-weight:800; letter-spacing:2px;">
+                    Thank You.
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="hud">
+        <button class="nav-btn" onclick="prev()">&#8592;</button>
+        <div class="dots" id="dots"></div>
+        <button class="nav-btn" onclick="next()">&#8594;</button>
+        <span class="slide-num" id="slideNum">1 / 9</span>
+    </div>
+
+    <script>
+        let current = 0;
+        const slides = document.querySelectorAll('.slide');
+        const dotsEl = document.getElementById('dots');
+        const numEl  = document.getElementById('slideNum');
+        const total  = slides.length;
+
+        slides.forEach((_, i) => {
+            const d = document.createElement('div');
+            d.className = 'dot' + (i === 0 ? ' active' : '');
+            dotsEl.appendChild(d);
+        });
+
+        function update() {
+            slides.forEach((s, i) => s.classList.toggle('active', i === current));
+            document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === current));
+            numEl.textContent = (current + 1) + ' / ' + total;
+        }
+
+        function next() { if (current < total - 1) { current++; update(); } }
+        function prev() { if (current > 0) { current--; update(); } }
+
+        document.addEventListener('keydown', e => {
+            if (['ArrowRight', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); next(); }
+            if (e.key === 'ArrowLeft') prev();
+        });
+    </script>
+</body>
+
+</html>

@@ -72,6 +72,16 @@ export default function Dashboard() {
               </span>
             ))}
             <a
+              href="https://www.moltbook.com/m/agentforgestellar"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-neutral-500 hover:text-orange-400 transition-colors text-sm border border-neutral-800 hover:border-orange-500/40 rounded-lg px-3 py-1.5"
+              title="Watch agents post live on Moltbook"
+            >
+              <span className="text-base leading-none">🦞</span>
+              <span className="hidden sm:inline">Moltbook</span>
+            </a>
+            <a
               href="https://github.com/HACK3R-CRYPTO/AgentForge"
               target="_blank"
               rel="noopener noreferrer"
