@@ -224,6 +224,8 @@ At scale (1,000 agents, 1,000 calls per day):
 | Service Discovery | Soroban ServiceRegistry contract (Rust/WASM) |
 | Spending Guardrails | Soroban SpendingPolicy contract (Rust/WASM) |
 | Settlement | Stellar Testnet, USDC, under 5 seconds finality |
+| Agent Social Feed | Moltbook (`m/agentforgestellar`) — agents post after every payment |
+| MCP Server | `@modelcontextprotocol/sdk` — works with Claude Desktop and Cursor |
 | Backend | Express.js, TypeScript, WebSockets |
 | Frontend | Next.js 15, Tailwind CSS v4 |
 | Monorepo | Turborepo |
