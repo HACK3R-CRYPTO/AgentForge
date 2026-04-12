@@ -56,7 +56,7 @@ export default function Dashboard() {
             <a href="/" className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-xs text-white">
               AF
             </a>
-            <span className="font-semibold text-white">AgentForge</span>
+            <a href="/" className="font-semibold text-white hover:text-indigo-400 transition-colors">AgentForge</a>
             <span className="text-neutral-700 hidden sm:block">/</span>
             <span className="text-neutral-500 text-sm hidden sm:block">Dashboard</span>
           </div>
