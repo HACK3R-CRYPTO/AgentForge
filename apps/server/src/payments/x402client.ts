@@ -4,6 +4,7 @@
 import { x402Client, x402HTTPClient } from "@x402/core/client";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { createEd25519Signer } from "@x402/stellar";
+import { postPaymentReceived } from "../services/moltbook.js";
 
 let _httpClient: x402HTTPClient | null = null;
 
@@ -144,7 +145,9 @@ export async function callScraperAgent(url: string): Promise<AgentCallResult> {
 
   const txHeader = response.headers.get("PAYMENT-RESPONSE") || response.headers.get("x-payment-response") || "";
   if (!txHeader) console.warn("[x402] Scraper headers:", [...response.headers.entries()].map(([k]) => k).join(", "));
-  recordPayment("Scraper", process.env.SCRAPER_PUBLIC_KEY || "", "0.0010000", txHeader || `pending-${Date.now()}`, "x402");
+  const scraperTxHash = txHeader || `pending-${Date.now()}`;
+  recordPayment("Scraper", process.env.SCRAPER_PUBLIC_KEY || "", "0.0010000", scraperTxHash, "x402");
+  postPaymentReceived("scraper", 0.001, scraperTxHash, "Orchestrator", "x402").catch(() => {});
 
   const data = (await response.json()) as { content?: string };
   return { status: "completed", output: data.content ?? "", amountPaid: 0.001, txHash: txHeader };
@@ -156,6 +159,7 @@ export async function callSummarizerAgent(text: string, style = "brief"): Promis
 
   // Record with protocol=mpp so Payment Explorer shows correct label
   recordPayment("Summarizer", process.env.SUMMARIZER_PUBLIC_KEY || "", "0.0020000", mppResult.txHash, "mpp");
+  postPaymentReceived("summarizer", 0.002, mppResult.txHash, "Scraper", "mpp").catch(() => {});
 
   return { status: "completed", output: mppResult.output, amountPaid: 0.002, txHash: mppResult.txHash };
 }
@@ -175,7 +179,9 @@ export async function callAnalystAgent(data: string, question: string): Promise<
 
   const txHeader = response.headers.get("PAYMENT-RESPONSE") || response.headers.get("x-payment-response") || "";
   if (!txHeader) console.warn("[x402] Analyst headers:", [...response.headers.entries()].map(([k]) => k).join(", "));
-  recordPayment("Analyst", process.env.ANALYST_PUBLIC_KEY || "", "0.0030000", txHeader || `pending-${Date.now()}`, "x402");
+  const analystTxHash = txHeader || `pending-${Date.now()}`;
+  recordPayment("Analyst", process.env.ANALYST_PUBLIC_KEY || "", "0.0030000", analystTxHash, "x402");
+  postPaymentReceived("analyst", 0.003, analystTxHash, "Orchestrator", "x402").catch(() => {});
 
   const result = (await response.json()) as { report?: string };
   return { status: "completed", output: result.report ?? "", amountPaid: 0.003, txHash: txHeader };

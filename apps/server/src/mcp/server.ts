@@ -426,4 +426,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 // ── Start ─────────────────────────────────────────────────────────────────────
 
 const transport = new StdioServerTransport();
-await server.connect(transport);
+server.connect(transport).catch((err) => {
+  console.error("MCP server error:", err);
+  process.exit(1);
+});

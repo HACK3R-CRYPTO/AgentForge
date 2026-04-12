@@ -10,6 +10,7 @@ import {
   recordPayment,
 } from "../payments/x402client.js";
 import { scrapeAndSummarize } from "./scraper.js";
+import { postTaskCompleted } from "../services/moltbook.js";
 
 // Lazy init so dotenv has time to load before the constructor reads env vars
 let _anthropic: Anthropic | null = null;
@@ -368,6 +369,10 @@ Decompose this task, discover agents, check budget, and hire them to complete th
     message: `Task completed successfully`,
     timestamp: Date.now(),
   });
+
+  // Fire-and-forget — Orchestrator posts to Moltbook about the completed task
+  const spent = task.budget - (await checkBudget().catch(() => task.budget));
+  postTaskCompleted(task.prompt, Math.max(0, spent)).catch(() => {});
 
   return finalResult;
 }
