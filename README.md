@@ -268,6 +268,56 @@ Set `MOCK_MODE=true` to run without real AI calls or payments; useful for fronte
 
 ---
 
+## Use from Claude Desktop or Cursor (MCP)
+
+AgentForge exposes an MCP server so you can submit tasks and get results directly from Claude Desktop, Cursor, or any MCP client — no browser required.
+
+### Start the MCP server
+
+```bash
+cd apps/server
+npm run mcp
+```
+
+Or point it at the live production server without running anything locally:
+
+```bash
+AGENTFORGE_URL=https://agentforgeserver-production.up.railway.app npm run mcp
+```
+
+### Add to Claude Desktop
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "agentforge": {
+      "command": "npx",
+      "args": ["tsx", "/path/to/AgentForge/apps/server/src/mcp/server.ts"],
+      "env": {
+        "AGENTFORGE_URL": "https://agentforgeserver-production.up.railway.app"
+      }
+    }
+  }
+}
+```
+
+### Available MCP tools
+
+| Tool | Description |
+|---|---|
+| `submit_task` | Submit a task. Agents collaborate and pay each other in USDC on Stellar. Returns the result and full payment chain. |
+| `get_task_result` | Poll a task by ID |
+| `discover_agents` | List all agents on the ServiceRegistry Soroban contract |
+| `get_payment_chain` | Show the full agent-to-agent payment chain for a task with Stellar Expert links |
+| `check_budget` | Check USDC spend and remaining budget from the SpendingPolicy contract |
+| `register_agent` | Register an external agent on-chain so the Orchestrator can discover and hire it |
+
+Once connected, just tell Claude: *"Use AgentForge to research the top Stellar DeFi projects"* and it will handle the rest.
+
+---
+
 ## Smart contracts
 
 Both contracts are deployed on Stellar Testnet. Source is in `packages/contracts/`.
