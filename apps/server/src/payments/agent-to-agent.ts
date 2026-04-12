@@ -60,8 +60,11 @@ export async function scraperHiresSummarizer(text: string): Promise<AgentHireRes
   if (receipt) {
     try {
       const parsed = JSON.parse(atob(receipt));
-      txHash = parsed.transaction || parsed.hash || txHash;
-    } catch { /* use default */ }
+      // mppx Receipt schema uses `reference` for the Stellar tx hash
+      txHash = parsed.reference || parsed.transaction || parsed.hash || parsed.txHash || parsed.tx || txHash;
+    } catch {
+      if (receipt.length >= 32) txHash = receipt.slice(0, 64);
+    }
   }
 
   const data = (await response.json()) as { summary?: string };

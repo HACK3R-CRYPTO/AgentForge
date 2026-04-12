@@ -61,10 +61,10 @@ export async function callSummarizerViaMpp(
   if (receipt) {
     try {
       const parsed = JSON.parse(atob(receipt));
-      txHash = parsed.transaction || parsed.hash || receipt;
+      // mppx Receipt schema uses `reference` for the Stellar tx hash
+      txHash = parsed.reference || parsed.transaction || parsed.hash || parsed.txHash || parsed.tx || parsed.id || receipt;
     } catch {
-      // Receipt format varies — use it as-is if parsing fails
-      txHash = receipt.slice(0, 64);
+      txHash = receipt.length >= 32 ? receipt.slice(0, 64) : `mock-${Date.now()}`;
     }
   }
 

@@ -26,7 +26,7 @@ import {
 const BASE_URL = process.env.AGENTFORGE_URL || "http://localhost:4021";
 
 const server = new Server(
-  { name: "agentforge", version: "1.0.0" },
+  { name: "agentforge-stellar", version: "1.0.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -156,67 +156,95 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt, budget }),
         });
+
+        if (!res.ok) {
+          return { content: [{ type: "text", text: `Failed to submit task: ${res.status} ${res.statusText}` }] };
+        }
+
         const data = (await res.json()) as { taskId: string; status: string };
         const taskId = data.taskId;
 
-        // Poll until complete
-        let taskDone = false;
-        let result = "";
-        let attempts = 0;
-
-        while (!taskDone && attempts < 60) {
-          await new Promise((r) => setTimeout(r, 3000));
-          attempts++;
+        // Poll for up to 90 seconds (18 × 5s) — well within MCP timeout
+        let taskResult: { status: string; result?: string } | null = null;
+        for (let i = 0; i < 18; i++) {
+          await new Promise((r) => setTimeout(r, 5000));
           try {
             const poll = await fetch(`${BASE_URL}/api/tasks/${taskId}`);
-            const t = (await poll.json()) as { status: string; result?: string };
-            if (t.status === "completed" || t.status === "failed") {
-              taskDone = true;
-              result = t.result || "";
+            if (poll.ok) {
+              const t = (await poll.json()) as { status: string; result?: string };
+              if (t.status === "completed" || t.status === "failed") {
+                taskResult = t;
+                break;
+              }
             }
-          } catch {
-            /* keep polling */
-          }
+          } catch { /* keep polling */ }
         }
 
-        // Fetch payment ledger to build the chain
-        const paymentsRes = await fetch(`${BASE_URL}/api/payments/history`);
-        const payments = paymentsRes.ok
-          ? ((await paymentsRes.json()) as Array<{
-              toLabel: string;
-              fromLabel: string;
-              amount: string;
-              txHash: string;
-              protocol: string;
-            }>)
-          : [];
+        // Task still running after 90s — return taskId for manual follow-up
+        if (!taskResult) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: [
+                  `Task submitted to AgentForge (Stellar Testnet). Task ID: ${taskId}`,
+                  ``,
+                  `The agents are still working (>90s). Call get_task_result with task_id="${taskId}" to fetch the result when ready.`,
+                ].join("\n"),
+              },
+            ],
+          };
+        }
 
-        const chain: string[] = [
-          `**Agent Payment Chain**`,
+        if (taskResult.status === "failed") {
+          return { content: [{ type: "text", text: `Task failed: ${taskResult.result}` }] };
+        }
+
+        // Fetch payment chain
+        const paymentsRes2 = await fetch(`${BASE_URL}/api/payments/history`);
+        const paymentsData2 = paymentsRes2.ok ? await paymentsRes2.json() : {};
+        const payments2: Array<{
+          toLabel: string;
+          fromLabel: string;
+          amount: string;
+          txHash: string;
+          protocol: string;
+        }> = Array.isArray(paymentsData2) ? paymentsData2 : (paymentsData2.payments ?? []);
+
+        const isStellarHash = (h: string) =>
+          !!h && !h.startsWith("mock-") && !h.startsWith("pending-") && !h.startsWith("a2a-") && h.length >= 32;
+
+        const chain2: string[] = [
+          `**Agent Payment Chain (Stellar Testnet)**`,
           ``,
-          `Orchestrator queried ServiceRegistry on Stellar Testnet and discovered available agents.`,
+          `Orchestrator queried ServiceRegistry on Stellar and hired agents:`,
           ``,
         ];
 
-        for (const p of payments.slice(0, 6)) {
+        for (const p of payments2.slice(0, 6)) {
           const isA2A = p.fromLabel.toLowerCase().includes("scraper");
-          chain.push(`${p.fromLabel} → ${p.toLabel}`);
-          chain.push(`  Paid: $${p.amount} USDC via ${p.protocol.toUpperCase()}${isA2A ? " (agent-to-agent — Scraper's own Stellar wallet)" : ""}`);
-          if (p.txHash && !p.txHash.startsWith("pending-")) {
-            chain.push(`  Tx: https://stellar.expert/explorer/testnet/tx/${p.txHash}`);
+          chain2.push(`${p.fromLabel} → ${p.toLabel}`);
+          chain2.push(`  Paid: $${p.amount} USDC via ${p.protocol.toUpperCase()}${isA2A ? " (agent-to-agent — Scraper paid from its own Stellar wallet)" : ""}`);
+          if (p.txHash && isStellarHash(p.txHash)) {
+            chain2.push(`  Tx: https://stellar.expert/explorer/testnet/tx/${p.txHash}`);
           }
-          chain.push(``);
+          chain2.push(``);
         }
 
-        const output = [
-          chain.join("\n"),
-          `---`,
-          `**Result**`,
-          ``,
-          result || "No result returned.",
-        ].join("\n");
-
-        return { content: [{ type: "text", text: output }] };
+        return {
+          content: [
+            {
+              type: "text",
+              text: [
+                chain2.join("\n"),
+                `---`,
+                `**Result**`,
+                ``,
+                taskResult.result || "No result returned.",
+              ].join("\n"),
+            },
+          ],
+        };
       }
 
       case "get_task_result": {
@@ -234,18 +262,56 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 
         if (task.status === "running" || task.status === "pending") {
           return {
-            content: [{ type: "text", text: `Task is still running. Check again in a few seconds.` }],
+            content: [{ type: "text", text: `Task is still running. Check again in 10–15 seconds.` }],
           };
+        }
+
+        if (task.status !== "completed") {
+          return { content: [{ type: "text", text: `Task failed: ${task.result}` }] };
+        }
+
+        // Fetch payment chain
+        const paymentsRes = await fetch(`${BASE_URL}/api/payments/history`);
+        const paymentsData = paymentsRes.ok ? await paymentsRes.json() : {};
+        const payments: Array<{
+          toLabel: string;
+          fromLabel: string;
+          amount: string;
+          txHash: string;
+          protocol: string;
+        }> = Array.isArray(paymentsData) ? paymentsData : (paymentsData.payments ?? []);
+
+        const chain: string[] = [
+          `**Agent Payment Chain (Stellar Testnet)**`,
+          ``,
+          `Orchestrator queried ServiceRegistry on Stellar and hired agents:`,
+          ``,
+        ];
+
+        const isRealHash = (h: string) =>
+          !!h && !h.startsWith("mock-") && !h.startsWith("pending-") && !h.startsWith("a2a-") && h.length >= 32;
+
+        for (const p of payments.slice(0, 6)) {
+          const isA2A = p.fromLabel.toLowerCase().includes("scraper");
+          chain.push(`${p.fromLabel} → ${p.toLabel}`);
+          chain.push(`  Paid: $${p.amount} USDC via ${p.protocol.toUpperCase()}${isA2A ? " (agent-to-agent — Scraper paid from its own Stellar wallet)" : ""}`);
+          if (p.txHash && isRealHash(p.txHash)) {
+            chain.push(`  Tx: https://stellar.expert/explorer/testnet/tx/${p.txHash}`);
+          }
+          chain.push(``);
         }
 
         return {
           content: [
             {
               type: "text",
-              text:
-                task.status === "completed"
-                  ? `Task completed.\n\n${task.result}`
-                  : `Task failed: ${task.result}`,
+              text: [
+                chain.join("\n"),
+                `---`,
+                `**Result**`,
+                ``,
+                task.result || "No result returned.",
+              ].join("\n"),
             },
           ],
         };
