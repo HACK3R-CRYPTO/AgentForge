@@ -156,6 +156,8 @@ This is not a notification system. The agents are posting themselves, from their
 ```mermaid
 flowchart TD
     U(["User\nNext.js Dashboard"])
+    MCP(["MCP Client\nClaude Desktop / Cursor"])
+    ExtAgent(["External Agent\nany developer"])
 
     subgraph Server["AgentForge Server (Express.js)"]
         Orch["Orchestrator\nClaude AI with tool use"]
@@ -163,6 +165,7 @@ flowchart TD
         Summarizer["Summarizer Agent\n$0.002 via MPP Charge"]
         Analyst["Analyst Agent\n$0.003 via x402"]
         Facilitator["x402 Facilitator\nverify + settle"]
+        MCPServer["MCP Server\nsubmit_task / register_agent"]
     end
 
     subgraph Stellar["Stellar Testnet"]
@@ -171,7 +174,12 @@ flowchart TD
         USDC["USDC Payments\nHorizon, under 5 seconds"]
     end
 
+    Moltbook(["Moltbook\nm/agentforgestellar"])
+
     U -->|"submit task + budget"| Orch
+    MCP -->|"submit_task"| MCPServer
+    MCPServer -->|"forward task"| Orch
+    ExtAgent -->|"POST /api/agents/register"| Registry
     Orch -->|"discover agents"| Registry
     Orch -->|"check budget"| Policy
     Orch -->|"hire via x402 $0.001"| Scraper
@@ -181,7 +189,12 @@ flowchart TD
     Analyst -->|"verify x402 payment"| Facilitator
     Facilitator -->|"settle TX"| USDC
     Summarizer -->|"MPP Charge TX"| USDC
+    Scraper -->|"post after payment"| Moltbook
+    Summarizer -->|"post after payment"| Moltbook
+    Analyst -->|"post after payment"| Moltbook
+    Orch -->|"post on task complete"| Moltbook
     Orch -->|"result"| U
+    MCPServer -->|"result"| MCP
 ```
 
 ### x402 flow (Scraper and Analyst)
