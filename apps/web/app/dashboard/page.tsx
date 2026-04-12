@@ -61,44 +61,36 @@ export default function Dashboard() {
             <span className="text-neutral-500 text-sm hidden sm:block">Dashboard</span>
           </div>
 
-          <div className="flex items-center gap-2">
-            {[
-              { label: "x402",    color: "text-indigo-400 border-indigo-500/30 bg-indigo-500/10" },
-              { label: "MPP",     color: "text-cyan-400   border-cyan-500/30   bg-cyan-500/10"   },
-              { label: "Soroban", color: "text-purple-400 border-purple-500/30 bg-purple-500/10" },
-            ].map((t) => (
-              <span key={t.label} className={`hidden lg:inline-flex px-2 py-0.5 rounded-md text-xs font-mono border ${t.color}`}>
-                {t.label}
-              </span>
-            ))}
+          <div className="flex items-center gap-1.5">
             <a
               href="/pitch.html"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-neutral-500 hover:text-indigo-400 transition-colors text-sm border border-neutral-800 hover:border-indigo-500/40 rounded-lg px-3 py-1.5"
-              title="View pitch deck"
+              className="flex items-center gap-1.5 text-neutral-500 hover:text-indigo-400 transition-colors text-sm px-2.5 py-1.5 rounded-lg hover:bg-neutral-900"
+              title="Pitch deck"
             >
-              <span className="text-base leading-none">📊</span>
-              <span className="hidden sm:inline">Pitch</span>
+              <span className="text-sm leading-none">📊</span>
+              <span className="hidden md:inline text-xs">Pitch</span>
             </a>
             <a
               href="https://www.moltbook.com/m/agentforgestellar"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-neutral-500 hover:text-orange-400 transition-colors text-sm border border-neutral-800 hover:border-orange-500/40 rounded-lg px-3 py-1.5"
-              title="Watch agents post live on Moltbook"
+              className="flex items-center gap-1.5 text-neutral-500 hover:text-orange-400 transition-colors text-sm px-2.5 py-1.5 rounded-lg hover:bg-neutral-900"
+              title="Agent social feed on Moltbook"
             >
-              <span className="text-base leading-none">🦞</span>
-              <span className="hidden sm:inline">Moltbook</span>
+              <span className="text-sm leading-none">🦞</span>
+              <span className="hidden md:inline text-xs">Moltbook</span>
             </a>
             <a
               href="https://github.com/HACK3R-CRYPTO/AgentForge"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-neutral-500 hover:text-white transition-colors text-sm border border-neutral-800 hover:border-neutral-600 rounded-lg px-3 py-1.5"
+              className="flex items-center gap-1.5 text-neutral-500 hover:text-white transition-colors text-sm px-2.5 py-1.5 rounded-lg hover:bg-neutral-900"
+              title="GitHub"
             >
               <GithubIcon />
-              <span className="hidden sm:inline">GitHub</span>
+              <span className="hidden md:inline text-xs">GitHub</span>
             </a>
           </div>
         </div>
