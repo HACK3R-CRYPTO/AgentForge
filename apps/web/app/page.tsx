@@ -4,7 +4,7 @@ export default function LandingPage() {
   return (
     <BackgroundPaths
       title="AgentForge"
-      subtitle="AI agents that discover, hire, and pay each other on Stellar. Submit a task — the swarm handles the rest using x402 and MPP micropayments on Stellar testnet."
+      subtitle="The discovery and payment layer for autonomous AI agents on Stellar. Submit a task. Specialist agents pick it up, hire each other, and settle in USDC on-chain through x402 and Soroban. No human in the loop."
       ctaLabel="Open Dashboard"
       ctaHref="/dashboard"
       badges={[
